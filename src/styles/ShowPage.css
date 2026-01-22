@@ -1,71 +1,50 @@
-@media (max-width: 900px) {
-  .hero {
-    grid-template-columns: 1fr;
-    padding: 32px 12px;
-    gap: 24px;
-  }
-  .hero-title {
-    font-size: 32px;
-  }
-  .hero-subtitle {
-    font-size: 16px;
-  }
-  .section {
-    padding: 24px 8px;
-  }
-  .cards {
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
+:root{
+  --bg: #ffffff;
+  --text: #111827;
+  --muted: #4b5563;
+  --muted2: #6b7280;
+  --border: #e5e7eb;
+  --soft: #f1f5f9;
+  --footer: #f8fafc;
+  --btn: #111827;
 }
 
-@media (max-width: 600px) {
-  .hero {
-    padding: 18px 4px;
-  }
-  .section {
-    padding: 12px 2px;
-  }
-  .cards {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  .card {
-    padding: 16px 6px;
-  }
-  .hero-title {
-    font-size: 22px;
-  }
-  .hero-subtitle {
-    font-size: 14px;
-  }
-}
-/* App container for centering the whole app */
-.app-container {
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-/* App container for centering the whole app */
-.app-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  min-height: 100vh;
-}
+* { box-sizing: border-box; }
+
+html, body { height: auto; }
+
 body {
-  margin: 0 !important;
+  margin: 0;
   font-family: Arial, sans-serif;
-  background: #ffffff;
-  color: #0f172a;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
-header {
-  padding: 60px 40px;
+
+/* ===== FORCE LIGHT MODE (override any global dark styles) ===== */
+html, body, #root,
+.page, .layout, .section,
+.app-container {
+  background: #ffffff !important;
+  color: #111827 !important;
 }
+
+/* ===== Mobile scroll fix: keep scrolling on body, not on containers ===== */
+#root,
+.page,
+.layout {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+/* Prevent horizontal scroll on mobile */
+html, body, #root, .page, .layout {
+  overflow-x: hidden !important;
+}
+
+/* HERO */
 .hero {
   padding: 60px 40px;
   max-width: 1200px;
@@ -75,31 +54,38 @@ header {
   gap: 40px;
   align-items: center;
 }
-.hero-text {
-  color: #0f172a;
-}
+
+.hero-text { color: var(--text); }
+
 .hero-label {
   font-size: 13px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: #9ca3af;
   margin-bottom: 10px;
 }
+
 .hero-title {
   font-size: 48px;
-  font-weight: 800;
+  font-weight: 300;
   letter-spacing: 0.28em;
   font-family: Arial, sans-serif;
+  margin: 0;
 }
+
 .hero-subtitle {
-  font-size: 20px;
-  color: #475569;
-  margin-top: 10px;
+  font-size: 18px;
+  color: var(--muted);
+  margin-top: 12px;
+  max-width: 460px;
+  line-height: 1.6;
 }
+
 .hero-image {
   display: flex;
   justify-content: flex-end;
 }
+
 .hero-image-inner {
   width: 100%;
   max-width: 420px;
@@ -109,90 +95,246 @@ header {
   transform-origin: center;
   transition: transform 0.4s ease, box-shadow 0.4s ease;
 }
+
 .hero-image-inner img {
   width: 100%;
-  height: 100%;
+  height: auto;
   display: block;
   object-fit: cover;
   transition: transform 0.5s ease, filter 0.5s ease;
 }
+
 .hero-image-inner:hover {
   transform: translateY(-6px) scale(1.02);
   box-shadow: 0 26px 65px rgba(15, 23, 42, 0.4);
 }
+
 .hero-image-inner:hover img {
   transform: scale(1.06);
   filter: saturate(1.08) brightness(1.04);
 }
+
+/* SECTIONS */
 .section {
   padding: 40px;
   max-width: 1200px;
-  margin: auto;
+  margin: 0 auto;
 }
+
+.story-wrap {
+  text-align: center;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 40px 10px;
+}
+
+.story {
+  font-size: 18px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Heading row */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  color: var(--text);
+}
+
+.section-title img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+/* Cards */
 .cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 28px;
-  margin: 0 auto;
-  justify-content: center;
+  margin-top: 30px;
 }
+
 .card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 20px;
   padding: 28px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+  min-width: 0;
 }
+
+/* ✅ Logo container: same placement + same sizing across all cards */
 .card-logo {
   height: 60px;
-  background: #f1f5f9;
+  width: 100%;
+  background: var(--soft);
   border-radius: 12px;
   margin-bottom: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden; /* taie ce depășește */
 }
+
+.card-logo img {
+  max-height: 80%;
+  max-width: 90%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
 .card-title {
   font-size: 22px;
   font-weight: 700;
   margin-bottom: 8px;
+  color: var(--text);
 }
+
 .card-desc {
   font-size: 15px;
-  color: #64748b;
+  color: var(--muted2);
   line-height: 1.5;
   margin-bottom: 16px;
 }
-.regions {
-  margin-top: 12px;
+
+.overview-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  gap: 12px;
 }
+
+/* ✅ Keep region badges on ONE line (desktop) */
+.regions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
 .badge {
-  background: #f1f5f9;
+  background: var(--soft);
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 13px;
-  color: #334155;
+  color: #374151;
+  white-space: nowrap;
 }
+
 .btn {
-  margin-top: 16px;
   display: inline-block;
   padding: 10px 18px;
-  background: #0f172a;
+  background: var(--btn);
   color: #ffffff;
   border-radius: 10px;
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
+  white-space: nowrap;
 }
-.story {
-  font-size: 17px;
-  color: #475569;
-  line-height: 1.7;
-  max-width: 900px;
-  margin: auto;
-  margin-top: 10px;
+
+/* Footer */
+footer {
+  margin-top: 60px;
+  padding: 40px;
+  background: var(--footer);
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 32px 16px;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .hero-subtitle {
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .hero-image {
+    justify-content: center;
+  }
+
+  .hero-image-inner {
+    max-width: 340px;
+  }
+
+  .section {
+    padding: 24px 16px;
+  }
+
+  .story-wrap {
+    padding: 0 16px 10px;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .overview-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* On mobile: allow badges to wrap if needed */
+  .regions {
+    flex-wrap: wrap;
+  }
+
+  footer {
+    padding: 28px 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .hero-title {
+    font-size: 34px;
+    letter-spacing: 0.18em;
+  }
+  .hero-image-inner {
+    max-width: 300px;
+  }
+}
+
+/* Extra small phones: prevent THEMOZAS title from being clipped */
+@media (max-width: 360px) {
+  .hero-title {
+    font-size: 30px !important;
+    letter-spacing: 0.10em !important;
+    line-height: 1.1 !important;
+    text-align: center !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .hero {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
 }
