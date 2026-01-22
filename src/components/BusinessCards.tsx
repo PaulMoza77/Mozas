@@ -26,7 +26,7 @@ const businesses: BusinessCardProps[] = [
 
 export const BusinessCards: React.FC = () => (
   <div className="cards">
-    {businesses.map((biz, idx) => (
+    {businesses.map((biz) => (
       <BusinessCard key={biz.title} {...biz} />
     ))}
   </div>
