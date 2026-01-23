@@ -1,9 +1,10 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Home } from "./pages/Home";
-import AdminGate from "./pages/AdminGate";
 
+import { Home } from "./pages/Home";
 import Admin from "./pages/Admin";
+import Expenses from "./pages/Expenses";
+import AdminGate from "./pages/AdminGate";
 import AdminBrands from "./pages/AdminBrands";
 import AdminExpenses from "./pages/AdminExpenses";
 
@@ -11,10 +12,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public */}
         <Route path="/" element={<Home />} />
+        <Route path="/expenses" element={<Expenses />} />
 
-        {/* Admin */}
         <Route
           path="/admin"
           element={
@@ -23,7 +23,6 @@ export default function App() {
             </AdminGate>
           }
         />
-
         <Route
           path="/admin/brands"
           element={
@@ -32,7 +31,6 @@ export default function App() {
             </AdminGate>
           }
         />
-
         <Route
           path="/admin/expenses"
           element={
@@ -42,7 +40,6 @@ export default function App() {
           }
         />
 
-        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
