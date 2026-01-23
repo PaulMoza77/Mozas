@@ -1,13 +1,23 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Home } from "./pages/Home";
 import Admin from "./pages/Admin";
+import AdminGate from "./pages/AdminGate";
 
 function App() {
   return (
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/admin" element={<Admin />} />
+
+        <Route
+          path="/admin"
+          element={
+            <AdminGate>
+              <Admin />
+            </AdminGate>
+          }
+        />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
