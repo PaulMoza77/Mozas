@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function MozasOverview() {
   return (
     <div className="min-h-screen bg-white text-slate-900 px-6 py-6">
