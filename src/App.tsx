@@ -1,13 +1,15 @@
-import {Home} from './pages/Home';
-
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Home } from "./pages/Home";
+import Admin from "./pages/Admin";
 
 function App() {
   return (
-    <div className="page">
-      <div className="layout">
-        <Home />
-      </div>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/admin" element={<Admin />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
