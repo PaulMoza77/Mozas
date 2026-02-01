@@ -11,6 +11,13 @@ export default function MozasOverview() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+  <a
+    href="/admin/brands"
+    className="px-3 py-1.5 text-xs rounded-full border border-slate-900 bg-slate-900 text-white font-medium hover:bg-black"
+  >
+    Manage brands
+  </a>
+
           <button className="px-3 py-1.5 text-xs rounded-full border border-slate-200 bg-slate-50 text-slate-700">
             Last 30 days
           </button>

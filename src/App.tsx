@@ -1,8 +1,10 @@
+// src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Home } from "./pages/Home";
 import Admin from "./pages/Admin";
 import Expenses from "./pages/Expenses";
 import AdminGate from "./pages/AdminGate";
+import AdminBrands from "./pages/AdminBrands";
 
 function App() {
   return (
@@ -17,6 +19,16 @@ function App() {
           element={
             <AdminGate>
               <Admin />
+            </AdminGate>
+          }
+        />
+
+        {/* Admin – Brands */}
+        <Route
+          path="/admin/brands"
+          element={
+            <AdminGate>
+              <AdminBrands />
             </AdminGate>
           }
         />
