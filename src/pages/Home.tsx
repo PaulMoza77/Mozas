@@ -17,7 +17,6 @@ type BrandRow = {
   is_active: boolean;
 };
 
-
 export const Home: React.FC = () => {
   const [brands, setBrands] = useState<BrandRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +25,9 @@ export const Home: React.FC = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("mozas_brands")
-      .select("id,name,slug,description,logo_url,overview_url,badges,sort_order,is_active")
+      .select(
+        "id,name,slug,description,logo_url,overview_url,badges,sort_order,is_active,created_at"
+      )
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false });
@@ -38,7 +39,6 @@ export const Home: React.FC = () => {
   useEffect(() => {
     loadBrands();
 
-    // live refresh when admin saves (realtime)
     const channel = supabase
       .channel("mozas_brands_home")
       .on(
@@ -65,12 +65,18 @@ export const Home: React.FC = () => {
 
       <section
         className="section"
-        style={{ textAlign: "center", maxWidth: 900, margin: "auto", marginTop: -20 }}
+        style={{
+          textAlign: "center",
+          maxWidth: 900,
+          margin: "auto",
+          marginTop: -20,
+        }}
       >
         <p style={{ fontSize: 18, color: "#475569", lineHeight: 1.6 }}>
-          THEMOZAS. brings together a suite of high-performance digital ventures built for global impact.
-          From mobility and AI-powered creativity to branding and digital growth, every brand in our ecosystem
-          follows one vision: fast execution, premium experiences, and scalable technology.
+          THEMOZAS. brings together a suite of high-performance digital ventures
+          built for global impact. From mobility and AI-powered creativity to
+          branding and digital growth, every brand in our ecosystem follows one
+          vision: fast execution, premium experiences, and scalable technology.
         </p>
       </section>
 
@@ -78,18 +84,23 @@ export const Home: React.FC = () => {
         <h2 style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <img
             src="https://images.unsplash.com/photo-1500835556837-99ac94a94552?q=80&w=200"
-            style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover" }}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 8,
+              objectFit: "cover",
+            }}
           />
           Businesses Inside THEMOZAS.
         </h2>
 
-        {/* Cards (from Admin / Supabase) */}
         <div
           style={{
             marginTop: 18,
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
             gap: 18,
+            alignItems: "stretch",
           }}
         >
           {loading ? (
@@ -99,143 +110,202 @@ export const Home: React.FC = () => {
                   key={i}
                   style={{
                     border: "1px solid #e2e8f0",
-                    borderRadius: 18,
+                    borderRadius: 22,
                     background: "white",
                     padding: 18,
-                    minHeight: 220,
+                    minHeight: 340,
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
+                    display: "flex",
+                    flexDirection: "column",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  <div
+                    style={{
+                      borderRadius: 18,
+                      background: "#f1f5f9",
+                      border: "1px solid #e2e8f0",
+                      height: 84,
+                    }}
+                  />
+                  <div
+                    style={{
+                      marginTop: 18,
+                      height: 20,
+                      width: "60%",
+                      background: "#f1f5f9",
+                      borderRadius: 10,
+                    }}
+                  />
+                  <div
+                    style={{
+                      marginTop: 12,
+                      height: 12,
+                      width: "92%",
+                      background: "#f1f5f9",
+                      borderRadius: 10,
+                    }}
+                  />
+                  <div
+                    style={{
+                      marginTop: 8,
+                      height: 12,
+                      width: "86%",
+                      background: "#f1f5f9",
+                      borderRadius: 10,
+                    }}
+                  />
+                  <div style={{ marginTop: "auto", paddingTop: 18, display: "flex", gap: 10 }}>
                     <div
                       style={{
-                        width: 56,
-                        height: 56,
+                        height: 44,
+                        width: 150,
+                        background: "#0f172a",
                         borderRadius: 14,
-                        background: "#f1f5f9",
-                        border: "1px solid #e2e8f0",
+                        opacity: 0.2,
                       }}
                     />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ height: 14, width: "60%", background: "#f1f5f9", borderRadius: 8 }} />
-                      <div style={{ height: 10, width: "40%", background: "#f1f5f9", borderRadius: 8, marginTop: 8 }} />
+                    <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+                      <div
+                        style={{
+                          height: 40,
+                          width: 90,
+                          background: "#f1f5f9",
+                          borderRadius: 999,
+                        }}
+                      />
+                      <div
+                        style={{
+                          height: 40,
+                          width: 90,
+                          background: "#f1f5f9",
+                          borderRadius: 999,
+                        }}
+                      />
                     </div>
-                  </div>
-                  <div style={{ height: 10, width: "95%", background: "#f1f5f9", borderRadius: 8 }} />
-                  <div style={{ height: 10, width: "85%", background: "#f1f5f9", borderRadius: 8, marginTop: 8 }} />
-                  <div style={{ height: 10, width: "70%", background: "#f1f5f9", borderRadius: 8, marginTop: 8 }} />
-                  <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
-                    <div style={{ height: 24, width: 64, background: "#f1f5f9", borderRadius: 999 }} />
-                    <div style={{ height: 24, width: 64, background: "#f1f5f9", borderRadius: 999 }} />
                   </div>
                 </div>
               ))}
             </>
           ) : hasBrands ? (
             brands.map((b) => (
-              <a
+              <div
                 key={b.id}
-                href={b.overview_url}
-                target="_blank"
-                rel="noreferrer"
                 style={{
-                  textDecoration: "none",
-                  color: "inherit",
                   border: "1px solid #e2e8f0",
                   borderRadius: 22,
                   background: "white",
                   padding: 18,
+                  minHeight: 340,
                   boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
-                  transition: "transform 0.12s ease, box-shadow 0.12s ease",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-                  (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 18px 45px rgba(0,0,0,0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0px)";
-                  (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 10px 30px rgba(0,0,0,0.04)";
+                  display: "flex",
+                  flexDirection: "column",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 16,
-                      border: "1px solid #e2e8f0",
-                      background: "#f8fafc",
-                      overflow: "hidden",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    {b.logo_url ? (
-                      <img
-                        src={b.logo_url}
-                        alt={b.name}
-                        style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                      />
-                    ) : (
-                      <span style={{ fontWeight: 800, color: "#0f172a" }}>
-                        {String(b.name || "B").trim().slice(0, 1).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                      <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{b.name}</h3>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 700,
-                          color: "#0f172a",
-                          background: "#f1f5f9",
-                          border: "1px solid #e2e8f0",
-                          padding: "6px 10px",
-                          borderRadius: 999,
-                        }}
-                      >
-                        Overview →
-                      </span>
-                    </div>
-
-                    {b.badges?.length ? (
-                      <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {b.badges.map((x) => (
-                          <span
-                            key={`${b.id}-${x}`}
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: "#334155",
-                              background: "#f8fafc",
-                              border: "1px solid #e2e8f0",
-                              padding: "6px 10px",
-                              borderRadius: 999,
-                            }}
-                          >
-                            {x}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <p
+                {/* logo header */}
+                <div
                   style={{
-                    marginTop: 14,
-                    marginBottom: 0,
-                    color: "#475569",
-                    lineHeight: 1.55,
-                    fontSize: 14,
+                    borderRadius: 18,
+                    background: "#f1f5f9",
+                    border: "1px solid #e2e8f0",
+                    height: 84,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
                   }}
                 >
+                  {b.logo_url ? (
+                    <img
+                      src={b.logo_url}
+                      alt={b.name}
+                      style={{ height: 56, width: "80%", objectFit: "contain" }}
+                    />
+                  ) : (
+                    <div style={{ fontWeight: 900, fontSize: 32, color: "#0f172a" }}>
+                      {String(b.name || "B")
+                        .trim()
+                        .slice(0, 1)
+                        .toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                {/* name */}
+                <h3
+                  style={{
+                    margin: "18px 0 8px",
+                    fontSize: 28,
+                    fontWeight: 800,
+                    color: "#0f172a",
+                    letterSpacing: -0.2,
+                  }}
+                >
+                  {b.name}
+                </h3>
+
+                {/* description */}
+                <p style={{ margin: 0, color: "#475569", lineHeight: 1.65, fontSize: 16 }}>
                   {b.description}
                 </p>
-              </a>
+
+                {/* bottom row */}
+                <div
+                  style={{
+                    marginTop: "auto",
+                    paddingTop: 18,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <a
+                    href={b.overview_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "12px 18px",
+                      borderRadius: 14,
+                      background: "#0f172a",
+                      color: "white",
+                      fontWeight: 800,
+                      textDecoration: "none",
+                      minWidth: 150,
+                    }}
+                  >
+                    Overview
+                  </a>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      marginLeft: "auto",
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    {(b.badges || []).map((x) => (
+                      <span
+                        key={`${b.id}-${x}`}
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: 999,
+                          background: "#f1f5f9",
+                          border: "1px solid #e2e8f0",
+                          color: "#334155",
+                          fontWeight: 800,
+                          fontSize: 14,
+                        }}
+                      >
+                        {x}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
             ))
           ) : (
             <div

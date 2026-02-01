@@ -1,6 +1,15 @@
 // src/pages/admin/AdminBrands.tsx
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, X, ExternalLink, Save, Upload, RefreshCw } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  ExternalLink,
+  Save,
+  Upload,
+  RefreshCw,
+} from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type BrandRow = {
@@ -8,10 +17,10 @@ type BrandRow = {
   name: string;
   slug: string;
   description: string;
-  logo_url: string;
+  logo_url: string | null;
   overview_url: string;
-  badges: string[];
-  sort_order: number;
+  badges: string[] | null;
+  sort_order: number | null;
   is_active: boolean;
   created_at?: string | null;
   updated_at?: string | null;
@@ -19,16 +28,18 @@ type BrandRow = {
 
 const BADGE_OPTIONS = ["Global", "EU", "SUA", "UAE", "Asia"] as const;
 
-// ✅ change if you want another bucket name
-const LOGO_BUCKET = "mozas-assets"; // create this in Supabase Storage
+// bucket name in Supabase Storage
+const LOGO_BUCKET = "mozas-assets";
 
-const DEFAULT_HOME_BRANDS: Array<Omit<BrandRow, "id" | "created_at" | "updated_at">> = [
+const DEFAULT_HOME_BRANDS: Array<
+  Omit<BrandRow, "id" | "created_at" | "updated_at">
+> = [
   {
     name: "Volocar",
     slug: "volocar",
     description:
       "Premium mobility marketplace across the UAE & EU: Rentals, Monthly, Sales, Concierge & Elite Services.",
-    logo_url: "",
+    logo_url: null,
     overview_url: "https://volocar.ae",
     badges: ["UAE", "EU"],
     sort_order: 10,
@@ -39,7 +50,7 @@ const DEFAULT_HOME_BRANDS: Array<Omit<BrandRow, "id" | "created_at" | "updated_a
     slug: "thedigitalgifter",
     description:
       "AI-powered greeting cards, videos & custom image creation. Personalized gifts in seconds.",
-    logo_url: "",
+    logo_url: null,
     overview_url: "https://thedigitalgifter.com",
     badges: ["Global"],
     sort_order: 20,
@@ -50,7 +61,7 @@ const DEFAULT_HOME_BRANDS: Array<Omit<BrandRow, "id" | "created_at" | "updated_a
     slug: "starscale",
     description:
       "Creative digital agency & personal branding accelerator: content, ads, growth, performance.",
-    logo_url: "",
+    logo_url: null,
     overview_url: "https://starscale.ro",
     badges: ["Global"],
     sort_order: 30,
@@ -61,7 +72,7 @@ const DEFAULT_HOME_BRANDS: Array<Omit<BrandRow, "id" | "created_at" | "updated_a
     slug: "brndly",
     description:
       "Branding & creative asset studio: logos, packaging, product visuals, and brand systems.",
-    logo_url: "",
+    logo_url: null,
     overview_url: "https://brndly.ro",
     badges: ["EU", "UAE"],
     sort_order: 40,
@@ -88,9 +99,14 @@ function isUrlLike(v: string) {
   return /^https?:\/\/.+/i.test(s);
 }
 
-function extFromName(name: string) {
-  const m = name.toLowerCase().match(/\.(png|jpg|jpeg|webp|svg)$/);
-  return m?.[1] || "png";
+function extFromFile(file: File) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".png")) return "png";
+  if (name.endsWith(".jpg")) return "jpg";
+  if (name.endsWith(".jpeg")) return "jpeg";
+  if (name.endsWith(".webp")) return "webp";
+  if (name.endsWith(".svg")) return "svg";
+  return "png";
 }
 
 export default function AdminBrands() {
@@ -112,7 +128,7 @@ export default function AdminBrands() {
   const [isActive, setIsActive] = useState(true);
 
   // logo upload state
-  const [logoUrl, setLogoUrl] = useState(""); // stored URL in DB
+  const [logoUrl, setLogoUrl] = useState<string>("");
   const [logoUploading, setLogoUploading] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -124,7 +140,7 @@ export default function AdminBrands() {
     const { data, error } = await supabase
       .from("mozas_brands")
       .select("*")
-      .order("sort_order", { ascending: true })
+      .order("sort_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -144,11 +160,12 @@ export default function AdminBrands() {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) => {
+      const badgesText = Array.isArray(r.badges) ? r.badges.join(" ") : "";
       return (
-        r.name?.toLowerCase().includes(q) ||
-        r.slug?.toLowerCase().includes(q) ||
-        r.description?.toLowerCase().includes(q) ||
-        (r.badges || []).join(" ").toLowerCase().includes(q)
+        (r.name || "").toLowerCase().includes(q) ||
+        (r.slug || "").toLowerCase().includes(q) ||
+        (r.description || "").toLowerCase().includes(q) ||
+        badgesText.toLowerCase().includes(q)
       );
     });
   }, [rows, query]);
@@ -189,7 +206,9 @@ export default function AdminBrands() {
   }
 
   function toggleBadge(b: string) {
-    setBadges((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]));
+    setBadges((prev) =>
+      prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]
+    );
   }
 
   function validate(): string | null {
@@ -204,20 +223,21 @@ export default function AdminBrands() {
     return null;
   }
 
-  async function ensureLogoUploaded(file: File) {
+  async function uploadLogo(file: File) {
     setLogoUploading(true);
     setErrorMsg(null);
 
-    const s = slugify(slug || name);
-    const stamp = Date.now();
-    const ext = extFromName(file.name);
-    const path = `brands/${s || "brand"}-${stamp}.${ext}`;
+    const safeSlug = slugify(slug || name) || "brand";
+    const ext = extFromFile(file);
+    const path = `brands/${safeSlug}-${Date.now()}.${ext}`;
 
-    const { error: upErr } = await supabase.storage.from(LOGO_BUCKET).upload(path, file, {
-      upsert: true,
-      cacheControl: "3600",
-      contentType: file.type || undefined,
-    });
+    const { error: upErr } = await supabase.storage
+      .from(LOGO_BUCKET)
+      .upload(path, file, {
+        upsert: true,
+        cacheControl: "3600",
+        contentType: file.type || undefined,
+      });
 
     if (upErr) {
       setLogoUploading(false);
@@ -246,7 +266,7 @@ export default function AdminBrands() {
       name: name.trim(),
       slug: slugify(slug || name),
       description: description.trim(),
-      logo_url: logoUrl.trim(), // ✅ from upload
+      logo_url: logoUrl.trim() || null,
       overview_url: overviewUrl.trim(),
       badges: badges,
       sort_order: Math.round(Number(sortOrder)),
@@ -254,7 +274,11 @@ export default function AdminBrands() {
     };
 
     if (editing?.id) {
-      const { error } = await supabase.from("mozas_brands").update(payload).eq("id", editing.id);
+      const { error } = await supabase
+        .from("mozas_brands")
+        .update(payload)
+        .eq("id", editing.id);
+
       if (error) {
         setErrorMsg(error.message);
         setSaving(false);
@@ -316,7 +340,9 @@ export default function AdminBrands() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Admin</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+              Admin
+            </p>
             <h1 className="mt-1 text-2xl font-semibold text-slate-900">Brands</h1>
             <p className="mt-2 text-sm text-slate-500">
               Manage the home cards (logo upload, description, overview redirect, badges).
@@ -363,10 +389,12 @@ export default function AdminBrands() {
           </div>
         ) : null}
 
-        {/* Table */}
+        {/* List */}
         <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_60px_-40px_rgba(0,0,0,0.25)]">
           <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <p className="text-sm font-semibold text-slate-900">{loading ? "Loading..." : `${filtered.length} brands`}</p>
+            <p className="text-sm font-semibold text-slate-900">
+              {loading ? "Loading..." : `${filtered.length} brands`}
+            </p>
             <button
               type="button"
               onClick={load}
@@ -384,7 +412,16 @@ export default function AdminBrands() {
               >
                 <div className="flex items-start gap-4">
                   <div className="h-12 w-12 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                    {r.logo_url ? <img src={r.logo_url} alt={r.name} className="h-full w-full object-contain" /> : null}
+                    {r.logo_url ? (
+                      <img
+                        src={r.logo_url}
+                        alt={r.name}
+                        className="h-full w-full object-contain"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : null}
                   </div>
 
                   <div className="min-w-0">
@@ -400,7 +437,7 @@ export default function AdminBrands() {
                         {r.is_active ? "Active" : "Hidden"}
                       </span>
 
-                      {(r.badges || []).map((b) => (
+                      {(Array.isArray(r.badges) ? r.badges : []).map((b) => (
                         <span
                           key={`${r.id}-${b}`}
                           className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700"
@@ -417,7 +454,7 @@ export default function AdminBrands() {
                         slug: {r.slug}
                       </span>
                       <span className="rounded-xl bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-500">
-                        order: {r.sort_order}
+                        order: {r.sort_order ?? 0}
                       </span>
 
                       {r.overview_url ? (
@@ -499,7 +536,9 @@ export default function AdminBrands() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                   {editing ? "Edit brand" : "Add brand"}
                 </p>
-                <h2 className="mt-1 text-lg font-semibold text-slate-900">{editing ? editing.name : "New brand"}</h2>
+                <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                  {editing ? editing.name : "New brand"}
+                </h2>
               </div>
 
               <button
@@ -563,14 +602,16 @@ export default function AdminBrands() {
                   />
                 </div>
 
-                {/* ✅ Logo upload (no URL input) */}
+                {/* Logo upload */}
                 <div className="sm:col-span-2">
                   <label className="text-xs font-semibold text-slate-700">Logo</label>
 
                   <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center gap-3">
                       <div className="h-12 w-12 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                        {logoUrl ? <img src={logoUrl} alt="logo" className="h-full w-full object-contain" /> : null}
+                        {logoUrl ? (
+                          <img src={logoUrl} alt="logo" className="h-full w-full object-contain" />
+                        ) : null}
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-900">Upload logo</p>
@@ -578,10 +619,12 @@ export default function AdminBrands() {
                       </div>
                     </div>
 
-                    <label className={cx(
-                      "inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black",
-                      logoUploading && "opacity-60 pointer-events-none"
-                    )}>
+                    <label
+                      className={cx(
+                        "inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black",
+                        logoUploading && "opacity-60 pointer-events-none"
+                      )}
+                    >
                       <Upload className="h-4 w-4" />
                       {logoUploading ? "Uploading..." : "Choose file"}
                       <input
@@ -591,7 +634,7 @@ export default function AdminBrands() {
                         onChange={(e) => {
                           const f = e.target.files?.[0];
                           if (!f) return;
-                          ensureLogoUploaded(f);
+                          uploadLogo(f);
                           e.currentTarget.value = "";
                         }}
                       />
@@ -696,7 +739,9 @@ export default function AdminBrands() {
                 </div>
               </div>
 
-              <p className="mt-4 text-xs text-slate-400">Logo = upload în Supabase Storage bucket: {LOGO_BUCKET}</p>
+              <p className="mt-4 text-xs text-slate-400">
+                Logo uploads to Supabase Storage bucket: <b>{LOGO_BUCKET}</b>
+              </p>
             </div>
           </div>
         </div>
