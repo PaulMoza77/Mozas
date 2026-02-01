@@ -1,5 +1,5 @@
 // src/pages/admin/AdminBrands.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, X, ExternalLink, Save } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
