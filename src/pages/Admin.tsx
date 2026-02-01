@@ -1,3 +1,5 @@
+// src/pages/Admin.tsx
+
 export default function MozasOverview() {
   return (
     <div className="min-h-screen bg-white text-slate-900 px-6 py-6">
@@ -11,8 +13,7 @@ export default function MozasOverview() {
             Mozas Overview
           </h1>
           <p className="mt-1 text-sm text-slate-500 max-w-xl">
-            Central hub to monitor revenue, profit and performance across all your
-            businesses.
+            Central hub to monitor revenue, profit and performance across all your businesses.
           </p>
         </div>
 
@@ -34,13 +35,13 @@ export default function MozasOverview() {
           <button className="px-3 py-1.5 text-xs rounded-full border border-slate-200 bg-slate-50 text-slate-700">
             Last 30 days
           </button>
-          <button className="px-3 py-1.5 text-xs rounded-full border border-slate-200 text-slate-700">
+          <button className="px-3 py-1.5 text-xs rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50">
             This month
           </button>
-          <button className="px-3 py-1.5 text-xs rounded-full border border-slate-200 text-slate-700">
+          <button className="px-3 py-1.5 text-xs rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50">
             Custom range
           </button>
-          <button className="px-3 py-1.5 text-xs rounded-full border border-emerald-500 bg-emerald-500 text-white font-medium">
+          <button className="px-3 py-1.5 text-xs rounded-full border border-emerald-500 bg-emerald-500 text-white font-medium hover:bg-emerald-600">
             Export report
           </button>
         </div>
@@ -85,9 +86,7 @@ export default function MozasOverview() {
               <button className="w-full flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-left hover:bg-slate-50 transition">
                 <div>
                   <p className="text-xs font-medium">Starscale</p>
-                  <p className="text-[11px] text-slate-500">
-                    Growth • Funnels & Ads
-                  </p>
+                  <p className="text-[11px] text-slate-500">Growth • Funnels & Ads</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-semibold text-emerald-600">€3.1k</p>
@@ -221,102 +220,6 @@ export default function MozasOverview() {
                 </div>
               </div>
             </div>
-
-            {/* Growth & customer metrics */}
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
-                <p className="text-xs text-slate-500">Visitors per sites</p>
-                <p className="mt-2 text-xl font-semibold">148,200</p>
-                <p className="mt-1 text-[11px] text-slate-500">
-                  Last 30 days across all brands.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
-                <p className="text-xs text-slate-500">Total customers</p>
-                <p className="mt-2 text-xl font-semibold">4,320</p>
-                <p className="mt-1 text-[11px] text-slate-500">
-                  Unique paying customers in portfolio.
-                </p>
-              </div>
-
-              {/* Spacer so Business Health can sit under Total customers on XL */}
-              <div className="hidden xl:block" />
-
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-slate-500">Avg spent / customer</p>
-                  <span className="text-sm font-semibold">€182</span>
-                </div>
-                <p className="mt-1 text-[11px] text-slate-500">
-                  Blended ARPU, with per-business breakdown.
-                </p>
-
-                <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-slate-600">Volocar</p>
-                    <span className="mt-1 inline-flex px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium text-[10px]">
-                      €205
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-slate-600">TheDigitalGifter</p>
-                    <span className="mt-1 inline-flex px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium text-[10px]">
-                      €149
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-slate-600">Starscale</p>
-                    <span className="mt-1 inline-flex px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium text-[10px]">
-                      €178
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-slate-600">BRNDLY</p>
-                    <span className="mt-1 inline-flex px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium text-[10px]">
-                      €121
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
-                <p className="text-xs text-slate-500">Business Health</p>
-                <p className="mt-1 text-[11px] text-slate-500">
-                  Overall portfolio status
-                </p>
-
-                <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-slate-600">Revenue trend</p>
-                    <span className="mt-1 inline-flex px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium text-[10px]">
-                      Growing
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-slate-600">Profitability</p>
-                    <span className="mt-1 inline-flex px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium text-[10px]">
-                      Healthy
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-slate-600">Cash position</p>
-                    <span className="mt-1 inline-flex px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium text-[10px]">
-                      Monitor
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-slate-600">Operational load</p>
-                    <span className="mt-1 inline-flex px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium text-[10px]">
-                      Stable
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Spacer to keep grid balanced on XL */}
-              <div className="hidden xl:block" />
-            </div>
           </section>
 
           {/* Performance by business */}
@@ -335,75 +238,25 @@ export default function MozasOverview() {
               </div>
 
               <div className="mt-3 space-y-3 text-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-[11px] font-medium">Volocar</p>
-                    <div className="mt-1 h-2 rounded-full bg-slate-100">
-                      <div
-                        className="h-2 rounded-full bg-slate-900"
-                        style={{ width: "72%" }}
-                      />
+                {[
+                  { name: "Volocar", width: "72%", revenue: "€39,900", profit: "€15,400 profit" },
+                  { name: "TheDigitalGifter", width: "16%", revenue: "€8,700", profit: "€3,900 profit" },
+                  { name: "Starscale", width: "8%", revenue: "€4,100", profit: "€1,100 profit" },
+                  { name: "BRNDLY", width: "4%", revenue: "€2,800", profit: "€940 profit" },
+                ].map((x) => (
+                  <div key={x.name} className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-[11px] font-medium">{x.name}</p>
+                      <div className="mt-1 h-2 rounded-full bg-slate-100">
+                        <div className="h-2 rounded-full bg-slate-900" style={{ width: x.width }} />
+                      </div>
+                    </div>
+                    <div className="ml-3 text-right text-[11px] text-slate-600">
+                      <p>{x.revenue}</p>
+                      <p className="text-[10px] text-emerald-600">{x.profit}</p>
                     </div>
                   </div>
-                  <div className="ml-3 text-right text-[11px] text-slate-600">
-                    <p>€39,900</p>
-                    <p className="text-[10px] text-emerald-600">
-                      €15,400 profit
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-[11px] font-medium">TheDigitalGifter</p>
-                    <div className="mt-1 h-2 rounded-full bg-slate-100">
-                      <div
-                        className="h-2 rounded-full bg-slate-900"
-                        style={{ width: "16%" }}
-                      />
-                    </div>
-                  </div>
-                  <div className="ml-3 text-right text-[11px] text-slate-600">
-                    <p>€8,700</p>
-                    <p className="text-[10px] text-emerald-600">
-                      €3,900 profit
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-[11px] font-medium">Starscale</p>
-                    <div className="mt-1 h-2 rounded-full bg-slate-100">
-                      <div
-                        className="h-2 rounded-full bg-slate-900"
-                        style={{ width: "8%" }}
-                      />
-                    </div>
-                  </div>
-                  <div className="ml-3 text-right text-[11px] text-slate-600">
-                    <p>€4,100</p>
-                    <p className="text-[10px] text-emerald-600">
-                      €1,100 profit
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-[11px] font-medium">BRNDLY</p>
-                    <div className="mt-1 h-2 rounded-full bg-slate-100">
-                      <div
-                        className="h-2 rounded-full bg-slate-900"
-                        style={{ width: "4%" }}
-                      />
-                    </div>
-                  </div>
-                  <div className="ml-3 text-right text-[11px] text-slate-600">
-                    <p>€2,800</p>
-                    <p className="text-[10px] text-emerald-600">€940 profit</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -432,9 +285,7 @@ export default function MozasOverview() {
                 </div>
 
                 <div className="rounded-xl border border-slate-200 px-3 py-2">
-                  <p className="text-[11px] font-medium mb-1">
-                    Today&apos;s key moves
-                  </p>
+                  <p className="text-[11px] font-medium mb-1">Today&apos;s key moves</p>
                   <ul className="list-disc list-inside text-[11px] text-slate-600 space-y-1">
                     <li>Review Volocar paid ads vs. CAC target.</li>
                     <li>Check new conversions & ARPU for TheDigitalGifter.</li>
@@ -461,37 +312,29 @@ export default function MozasOverview() {
                 </div>
               </div>
 
-              <button className="mt-3 w-full rounded-xl border border-slate-900 bg-slate-900 text-white text-xs font-medium py-2">
+              <button className="mt-3 w-full rounded-xl border border-slate-900 bg-slate-900 text-white text-xs font-medium py-2 hover:bg-black">
                 Open detailed Mozas reports
               </button>
             </div>
           </section>
 
-          {/* Bottom row: Operations snapshot */}
+          {/* Bottom row */}
           <section className="grid gap-6 lg:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
               <h3 className="text-sm font-semibold mb-2">Operational KPIs</h3>
               <div className="space-y-2 text-[11px] text-slate-600">
-                <div className="flex items-center justify-between">
-                  <span>Avg response time (support)</span>
-                  <span className="font-medium">2.3 h</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>On-time deliveries / bookings</span>
-                  <span className="font-medium">96.4%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Recurring customers (30d)</span>
-                  <span className="font-medium">31%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Active employees</span>
-                  <span className="font-medium">7</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Net promoter score</span>
-                  <span className="font-medium">8.7 / 10</span>
-                </div>
+                {[
+                  ["Avg response time (support)", "2.3 h"],
+                  ["On-time deliveries / bookings", "96.4%"],
+                  ["Recurring customers (30d)", "31%"],
+                  ["Active employees", "7"],
+                  ["Net promoter score", "8.7 / 10"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between">
+                    <span>{k}</span>
+                    <span className="font-medium">{v}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -501,48 +344,28 @@ export default function MozasOverview() {
                 High-impact time blocks you planned for this week.
               </p>
               <ul className="space-y-1.5 text-[11px] text-slate-600">
-                <li>
-                  <span className="font-medium">Mon:</span> Volocar EU expansion
-                  emails & partner calls.
-                </li>
-                <li>
-                  <span className="font-medium">Tue:</span> TheDigitalGifter
-                  funnel + pricing tests.
-                </li>
-                <li>
-                  <span className="font-medium">Wed:</span> Starscale client
-                  delivery & case studies.
-                </li>
-                <li>
-                  <span className="font-medium">Thu:</span> BRNDLY brand kits &
-                  creative assets.
-                </li>
-                <li>
-                  <span className="font-medium">Fri:</span> Mozas review +
-                  strategy.
-                </li>
+                <li><span className="font-medium">Mon:</span> Volocar EU expansion emails & partner calls.</li>
+                <li><span className="font-medium">Tue:</span> TheDigitalGifter funnel + pricing tests.</li>
+                <li><span className="font-medium">Wed:</span> Starscale client delivery & case studies.</li>
+                <li><span className="font-medium">Thu:</span> BRNDLY brand kits & creative assets.</li>
+                <li><span className="font-medium">Fri:</span> Mozas review + strategy.</li>
               </ul>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
               <h3 className="text-sm font-semibold mb-2">Finance snapshot</h3>
               <div className="space-y-2 text-[11px] text-slate-600">
-                <div className="flex items-center justify-between">
-                  <span>Personal monthly burn</span>
-                  <span className="font-medium">€5,200</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Business fixed costs</span>
-                  <span className="font-medium">€9,600</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Ad spend (avg 30d)</span>
-                  <span className="font-medium">€6,300</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Planned investments (next 90d)</span>
-                  <span className="font-medium">€24,000</span>
-                </div>
+                {[
+                  ["Personal monthly burn", "€5,200"],
+                  ["Business fixed costs", "€9,600"],
+                  ["Ad spend (avg 30d)", "€6,300"],
+                  ["Planned investments (next 90d)", "€24,000"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between">
+                    <span>{k}</span>
+                    <span className="font-medium">{v}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </section>

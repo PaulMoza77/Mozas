@@ -1,4 +1,3 @@
-// src/pages/admin/AdminBrands.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
@@ -31,9 +30,7 @@ const BADGE_OPTIONS = ["Global", "EU", "SUA", "UAE", "Asia"] as const;
 // bucket name in Supabase Storage
 const LOGO_BUCKET = "mozas-assets";
 
-const DEFAULT_HOME_BRANDS: Array<
-  Omit<BrandRow, "id" | "created_at" | "updated_at">
-> = [
+const DEFAULT_HOME_BRANDS: Array<Omit<BrandRow, "id" | "created_at" | "updated_at">> = [
   {
     name: "Volocar",
     slug: "volocar",
@@ -337,7 +334,6 @@ export default function AdminBrands() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-white to-slate-50">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
@@ -389,7 +385,6 @@ export default function AdminBrands() {
           </div>
         ) : null}
 
-        {/* List */}
         <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_60px_-40px_rgba(0,0,0,0.25)]">
           <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
             <p className="text-sm font-semibold text-slate-900">
@@ -431,7 +426,9 @@ export default function AdminBrands() {
                       <span
                         className={cx(
                           "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                          r.is_active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+                          r.is_active
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-slate-100 text-slate-600"
                         )}
                       >
                         {r.is_active ? "Active" : "Hidden"}
@@ -527,7 +524,6 @@ export default function AdminBrands() {
         </div>
       </div>
 
-      {/* Dialog */}
       {dialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_40px_120px_-70px_rgba(0,0,0,0.6)]">
@@ -602,11 +598,10 @@ export default function AdminBrands() {
                   />
                 </div>
 
-                {/* Logo upload */}
                 <div className="sm:col-span-2">
                   <label className="text-xs font-semibold text-slate-700">Logo</label>
 
-                  <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mt-2 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                       <div className="h-12 w-12 overflow-hidden rounded-2xl border border-slate-200 bg-white">
                         {logoUrl ? (
