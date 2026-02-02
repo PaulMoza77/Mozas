@@ -1,19 +1,20 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Home } from "./pages/Home";
-import Admin from "./pages/Admin";
-import Expenses from "./pages/Expenses";
 import AdminGate from "./pages/AdminGate";
-import AdminBrands from "./pages/AdminBrands";
 
-function App() {
+import Admin from "./pages/Admin";
+import AdminBrands from "./pages/AdminBrands";
+import AdminExpenses from "./pages/AdminExpenses";
+
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* Public */}
         <Route path="/" element={<Home />} />
 
-        {/* Admin overview */}
+        {/* Admin */}
         <Route
           path="/admin"
           element={
@@ -23,7 +24,6 @@ function App() {
           }
         />
 
-        {/* Admin – Brands */}
         <Route
           path="/admin/brands"
           element={
@@ -33,12 +33,11 @@ function App() {
           }
         />
 
-        {/* Admin – Expenses */}
         <Route
           path="/admin/expenses"
           element={
             <AdminGate>
-              <Expenses />
+              <AdminExpenses />
             </AdminGate>
           }
         />
@@ -49,5 +48,3 @@ function App() {
     </BrowserRouter>
   );
 }
-
-export default App;
