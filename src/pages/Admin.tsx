@@ -4,24 +4,39 @@ export default function MozasOverview() {
       {/* Header */}
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Admin Panel / Mozas</p>
-          <h1 className="mt-2 text-2xl md:text-3xl font-semibold">Mozas Overview</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+            Admin Panel / Mozas
+          </p>
+          <h1 className="mt-2 text-2xl md:text-3xl font-semibold">
+            Mozas Overview
+          </h1>
           <p className="mt-1 text-sm text-slate-500 max-w-xl">
-            Central hub to monitor revenue, profit and performance across all your businesses.
+            Central hub to monitor revenue, profit and performance across all your
+            businesses.
           </p>
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
-  <a
-    href="/admin/brands"
-    className="px-3 py-1.5 text-xs rounded-full border border-slate-900 bg-slate-900 text-white font-medium hover:bg-black"
-  >
-    Manage brands
-  </a>
+          <a
+            href="/admin/brands"
+            className="px-3 py-1.5 text-xs rounded-full border border-slate-900 bg-slate-900 text-white font-medium hover:bg-black"
+          >
+            Manage brands
+          </a>
+
+          <a
+            href="/admin/expenses"
+            className="px-3 py-1.5 text-xs rounded-full border border-slate-200 bg-white text-slate-900 font-medium hover:bg-slate-50"
+          >
+            Expenses
+          </a>
 
           <button className="px-3 py-1.5 text-xs rounded-full border border-slate-200 bg-slate-50 text-slate-700">
             Last 30 days
           </button>
-          <button className="px-3 py-1.5 text-xs rounded-full border border-slate-200 text-slate-700">This month</button>
+          <button className="px-3 py-1.5 text-xs rounded-full border border-slate-200 text-slate-700">
+            This month
+          </button>
           <button className="px-3 py-1.5 text-xs rounded-full border border-slate-200 text-slate-700">
             Custom range
           </button>
@@ -37,14 +52,18 @@ export default function MozasOverview() {
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold">Businesses</h2>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">4 active</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                4 active
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               <button className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left hover:bg-slate-100 transition">
                 <div>
                   <p className="text-xs font-medium">Volocar</p>
-                  <p className="text-[11px] text-slate-500">Mobility • Rentals & Subscriptions</p>
+                  <p className="text-[11px] text-slate-500">
+                    Mobility • Rentals & Subscriptions
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-semibold text-emerald-600">€42.3k</p>
@@ -66,7 +85,9 @@ export default function MozasOverview() {
               <button className="w-full flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-left hover:bg-slate-50 transition">
                 <div>
                   <p className="text-xs font-medium">Starscale</p>
-                  <p className="text-[11px] text-slate-500">Growth • Funnels & Ads</p>
+                  <p className="text-[11px] text-slate-500">
+                    Growth • Funnels & Ads
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-semibold text-emerald-600">€3.1k</p>
@@ -91,9 +112,24 @@ export default function MozasOverview() {
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
             <h3 className="text-sm font-semibold mb-3">Quick actions</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
-              <button className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-left hover:bg-slate-50">Add new business</button>
-              <button className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-left hover:bg-slate-50">Update targets</button>
-              <button className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-left hover:bg-slate-50">Task board</button>
+              <button className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-left hover:bg-slate-50">
+                Add new business
+              </button>
+              <button className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-left hover:bg-slate-50">
+                Update targets
+              </button>
+              <button className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-left hover:bg-slate-50">
+                Task board
+              </button>
+            </div>
+
+            <div className="mt-3">
+              <a
+                href="/admin/expenses"
+                className="block w-full rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-left text-[11px] font-medium text-white hover:bg-black"
+              >
+                Open Expenses
+              </a>
             </div>
           </div>
         </aside>
@@ -155,9 +191,13 @@ export default function MozasOverview() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-slate-500">Focus Signals</p>
-                  <p className="mt-1 text-[11px] text-slate-500">Quick health indicators across the portfolio.</p>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Quick health indicators across the portfolio.
+                  </p>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 font-medium text-[10px]">Live</span>
+                <span className="px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 font-medium text-[10px]">
+                  Live
+                </span>
               </div>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-3 text-[11px] text-slate-600">
@@ -182,18 +222,22 @@ export default function MozasOverview() {
               </div>
             </div>
 
-            {/* Growth & customer metrics (layout controlled with spacers) */}
+            {/* Growth & customer metrics */}
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
                 <p className="text-xs text-slate-500">Visitors per sites</p>
                 <p className="mt-2 text-xl font-semibold">148,200</p>
-                <p className="mt-1 text-[11px] text-slate-500">Last 30 days across all brands.</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Last 30 days across all brands.
+                </p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
                 <p className="text-xs text-slate-500">Total customers</p>
                 <p className="mt-2 text-xl font-semibold">4,320</p>
-                <p className="mt-1 text-[11px] text-slate-500">Unique paying customers in portfolio.</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Unique paying customers in portfolio.
+                </p>
               </div>
 
               {/* Spacer so Business Health can sit under Total customers on XL */}
@@ -204,7 +248,9 @@ export default function MozasOverview() {
                   <p className="text-xs text-slate-500">Avg spent / customer</p>
                   <span className="text-sm font-semibold">€182</span>
                 </div>
-                <p className="mt-1 text-[11px] text-slate-500">Blended ARPU, with per-business breakdown.</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Blended ARPU, with per-business breakdown.
+                </p>
 
                 <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
@@ -236,7 +282,9 @@ export default function MozasOverview() {
 
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
                 <p className="text-xs text-slate-500">Business Health</p>
-                <p className="mt-1 text-[11px] text-slate-500">Overall portfolio status</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Overall portfolio status
+                </p>
 
                 <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
@@ -277,9 +325,13 @@ export default function MozasOverview() {
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="text-sm font-semibold">Revenue by business</h3>
-                  <p className="text-[11px] text-slate-500">Distribution of revenue and profit across all active brands.</p>
+                  <p className="text-[11px] text-slate-500">
+                    Distribution of revenue and profit across all active brands.
+                  </p>
                 </div>
-                <button className="text-[11px] text-slate-500 underline underline-offset-2">View detailed report</button>
+                <button className="text-[11px] text-slate-500 underline underline-offset-2">
+                  View detailed report
+                </button>
               </div>
 
               <div className="mt-3 space-y-3 text-xs">
@@ -287,12 +339,17 @@ export default function MozasOverview() {
                   <div className="flex-1">
                     <p className="text-[11px] font-medium">Volocar</p>
                     <div className="mt-1 h-2 rounded-full bg-slate-100">
-                      <div className="h-2 rounded-full bg-slate-900" style={{ width: "72%" }} />
+                      <div
+                        className="h-2 rounded-full bg-slate-900"
+                        style={{ width: "72%" }}
+                      />
                     </div>
                   </div>
                   <div className="ml-3 text-right text-[11px] text-slate-600">
                     <p>€39,900</p>
-                    <p className="text-[10px] text-emerald-600">€15,400 profit</p>
+                    <p className="text-[10px] text-emerald-600">
+                      €15,400 profit
+                    </p>
                   </div>
                 </div>
 
@@ -300,12 +357,17 @@ export default function MozasOverview() {
                   <div className="flex-1">
                     <p className="text-[11px] font-medium">TheDigitalGifter</p>
                     <div className="mt-1 h-2 rounded-full bg-slate-100">
-                      <div className="h-2 rounded-full bg-slate-900" style={{ width: "16%" }} />
+                      <div
+                        className="h-2 rounded-full bg-slate-900"
+                        style={{ width: "16%" }}
+                      />
                     </div>
                   </div>
                   <div className="ml-3 text-right text-[11px] text-slate-600">
                     <p>€8,700</p>
-                    <p className="text-[10px] text-emerald-600">€3,900 profit</p>
+                    <p className="text-[10px] text-emerald-600">
+                      €3,900 profit
+                    </p>
                   </div>
                 </div>
 
@@ -313,12 +375,17 @@ export default function MozasOverview() {
                   <div className="flex-1">
                     <p className="text-[11px] font-medium">Starscale</p>
                     <div className="mt-1 h-2 rounded-full bg-slate-100">
-                      <div className="h-2 rounded-full bg-slate-900" style={{ width: "8%" }} />
+                      <div
+                        className="h-2 rounded-full bg-slate-900"
+                        style={{ width: "8%" }}
+                      />
                     </div>
                   </div>
                   <div className="ml-3 text-right text-[11px] text-slate-600">
                     <p>€4,100</p>
-                    <p className="text-[10px] text-emerald-600">€1,100 profit</p>
+                    <p className="text-[10px] text-emerald-600">
+                      €1,100 profit
+                    </p>
                   </div>
                 </div>
 
@@ -326,7 +393,10 @@ export default function MozasOverview() {
                   <div className="flex-1">
                     <p className="text-[11px] font-medium">BRNDLY</p>
                     <div className="mt-1 h-2 rounded-full bg-slate-100">
-                      <div className="h-2 rounded-full bg-slate-900" style={{ width: "4%" }} />
+                      <div
+                        className="h-2 rounded-full bg-slate-900"
+                        style={{ width: "4%" }}
+                      />
                     </div>
                   </div>
                   <div className="ml-3 text-right text-[11px] text-slate-600">
@@ -341,7 +411,9 @@ export default function MozasOverview() {
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="text-sm font-semibold">Control panel</h3>
-                  <p className="text-[11px] text-slate-500">Owner-level snapshot & priorities.</p>
+                  <p className="text-[11px] text-slate-500">
+                    Owner-level snapshot & priorities.
+                  </p>
                 </div>
               </div>
 
@@ -349,7 +421,9 @@ export default function MozasOverview() {
                 <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <div>
                     <p className="text-[11px] font-medium">Runway</p>
-                    <p className="text-[11px] text-slate-500">Months of personal + business expenses covered</p>
+                    <p className="text-[11px] text-slate-500">
+                      Months of personal + business expenses covered
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold">7.4</p>
@@ -358,7 +432,9 @@ export default function MozasOverview() {
                 </div>
 
                 <div className="rounded-xl border border-slate-200 px-3 py-2">
-                  <p className="text-[11px] font-medium mb-1">Today&apos;s key moves</p>
+                  <p className="text-[11px] font-medium mb-1">
+                    Today&apos;s key moves
+                  </p>
                   <ul className="list-disc list-inside text-[11px] text-slate-600 space-y-1">
                     <li>Review Volocar paid ads vs. CAC target.</li>
                     <li>Check new conversions & ARPU for TheDigitalGifter.</li>
@@ -421,22 +497,29 @@ export default function MozasOverview() {
 
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
               <h3 className="text-sm font-semibold mb-2">Owner schedule & focus</h3>
-              <p className="text-[11px] text-slate-500 mb-2">High-impact time blocks you planned for this week.</p>
+              <p className="text-[11px] text-slate-500 mb-2">
+                High-impact time blocks you planned for this week.
+              </p>
               <ul className="space-y-1.5 text-[11px] text-slate-600">
                 <li>
-                  <span className="font-medium">Mon:</span> Volocar EU expansion emails & partner calls.
+                  <span className="font-medium">Mon:</span> Volocar EU expansion
+                  emails & partner calls.
                 </li>
                 <li>
-                  <span className="font-medium">Tue:</span> TheDigitalGifter funnel + pricing tests.
+                  <span className="font-medium">Tue:</span> TheDigitalGifter
+                  funnel + pricing tests.
                 </li>
                 <li>
-                  <span className="font-medium">Wed:</span> Starscale client delivery & case studies.
+                  <span className="font-medium">Wed:</span> Starscale client
+                  delivery & case studies.
                 </li>
                 <li>
-                  <span className="font-medium">Thu:</span> BRNDLY brand kits & creative assets.
+                  <span className="font-medium">Thu:</span> BRNDLY brand kits &
+                  creative assets.
                 </li>
                 <li>
-                  <span className="font-medium">Fri:</span> Mozas review + strategy.
+                  <span className="font-medium">Fri:</span> Mozas review +
+                  strategy.
                 </li>
               </ul>
             </div>
