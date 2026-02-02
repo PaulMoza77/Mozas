@@ -1,13 +1,3 @@
-<<<<<<< HEAD
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
-import { Home } from "./pages/Home";
-import Admin from "./pages/Admin";
-import Expenses from "./pages/Expenses";
-import AdminGate from "./pages/AdminGate";
-import AdminBrands from "./pages/AdminBrands";
-import AdminExpenses from "./pages/AdminExpenses";
-=======
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Plus,
@@ -27,7 +17,6 @@ import {
 } from "./lib/expensesApi";
 
 /* ---------------- utils ---------------- */
->>>>>>> f5eb409 (Expenses admin done)
 
 function clsx(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -80,43 +69,6 @@ function ModalShell({
   onClose: () => void;
 }) {
   return (
-<<<<<<< HEAD
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/expenses" element={<Expenses />} />
-
-        <Route
-          path="/admin"
-          element={
-            <AdminGate>
-              <Admin />
-            </AdminGate>
-          }
-        />
-
-        <Route
-          path="/admin/brands"
-          element={
-            <AdminGate>
-              <AdminBrands />
-            </AdminGate>
-          }
-        />
-
-        <Route
-          path="/admin/expenses"
-          element={
-            <AdminGate>
-              <AdminExpenses />
-            </AdminGate>
-          }
-        />
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
-=======
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
       <button
         onClick={onClose}
@@ -461,6 +413,5 @@ function KpiCard({ title, value }: { title: string; value: number }) {
         {value ? value.toFixed(2) : "—"}
       </p>
     </div>
->>>>>>> f5eb409 (Expenses admin done)
   );
 }
