@@ -65,7 +65,7 @@ function ModalShell({
         aria-label="Close"
         onClick={onClose}
         disabled={disabled}
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-black/40 disabled:opacity-60"
       />
       <div className="relative w-full sm:w-[min(980px,92vw)] max-h-[92vh] overflow-hidden rounded-t-3xl sm:rounded-3xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 p-5 sm:p-6 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -87,6 +87,7 @@ function ModalShell({
             Close
           </button>
         </div>
+
         <div className="max-h-[calc(92vh-84px)] overflow-auto p-5 sm:p-6">
           {children}
         </div>
@@ -124,15 +125,7 @@ const BUSINESS = [
   "Personal",
 ] as const;
 
-const BRAND_OPTIONS = [
-  "TheMozas",
-  "Volocar",
-  "GetSureDrive",
-  "TDG",
-  "BRNDLY",
-  "Starscale",
-  "Personal",
-] as const;
+const BRAND_OPTIONS = BUSINESS;
 
 const CURRENCY_OPTIONS = ["AED", "EUR", "USD", "RON"] as const;
 
@@ -191,6 +184,7 @@ async function parseReceiptAI(input: {
     const text = await res.text().catch(() => "");
     throw new Error(text || "AI parse failed");
   }
+
   return (await res.json()) as {
     vendor?: string | null;
     amount?: number | null;
@@ -210,7 +204,9 @@ export default function AdminExpenses() {
 
   const [q, setQ] = useState("");
   const [brandFilter, setBrandFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_OPTIONS)[number]>("all");
+  const [statusFilter, setStatusFilter] = useState<
+    (typeof STATUS_OPTIONS)[number]
+  >("all");
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Draft | null>(null);
@@ -251,9 +247,11 @@ export default function AdminExpenses() {
   const totalsByBrand = useMemo(() => {
     const map: Record<string, number> = {};
     for (const b of BUSINESS) map[b] = 0;
+
     for (const r of rows) {
-      const b = (r.brand || "TheMozas").trim();
-      if (!map[b]) map[b] = 0;
+      const b = (r.brand || "TheMozas").trim() || "TheMozas";
+      if (!(b in map)) map[b] = 0;
+
       const v = Number(r.amount);
       if (Number.isFinite(v)) map[b] += v;
     }
@@ -286,10 +284,10 @@ export default function AdminExpenses() {
       expense_date: r.expense_date || todayISO(),
       vendor: r.vendor || "",
       amount: r.amount == null ? "" : String(r.amount),
-      currency: (r.currency || "AED") as any,
+      currency: (r.currency || "AED") as string,
       vat: r.vat == null ? "" : String(r.vat),
       category: r.category || "",
-      brand: (r.brand || "TheMozas") as any,
+      brand: (r.brand || "TheMozas") as string,
       note: r.note || "",
       receipt_url: r.receipt_url || "",
       receiptPreview: r.receipt_url || "",
@@ -314,28 +312,37 @@ export default function AdminExpenses() {
   const onRunAI = async () => {
     if (!editing) return;
     if (!editing.receipt_url && !editing.receiptFile) {
-      return alert("Upload receipt first.");
+      alert("Upload receipt first.");
+      return;
     }
 
     setAiBusy(true);
     try {
-      // Ensure we have receipt_url
       let receipt_url = editing.receipt_url || "";
+
       if (!receipt_url && editing.receiptFile) {
         receipt_url = await uploadReceipt(editing.receiptFile);
-        // if we upload here, we keep receiptFile but store url
         setEditing((prev) =>
-          prev ? { ...prev, receipt_url, receiptPreview: prev.receiptPreview || receipt_url } : prev
+          prev
+            ? {
+                ...prev,
+                receipt_url,
+                receiptPreview: prev.receiptPreview || receipt_url,
+              }
+            : prev
         );
       }
 
       const hintAmount =
-        editing.amount.trim() === "" ? null : Number(editing.amount.replace(",", "."));
+        editing.amount.trim() === ""
+          ? null
+          : Number(editing.amount.replace(",", "."));
+
       const parsed = await parseReceiptAI({
         receiptUrl: receipt_url,
         hint: {
           vendor: editing.vendor || undefined,
-          amount: Number.isFinite(hintAmount) ? hintAmount : null,
+          amount: Number.isFinite(hintAmount as any) ? (hintAmount as any) : null,
           currency: editing.currency || undefined,
           date: editing.expense_date || undefined,
         },
@@ -345,16 +352,16 @@ export default function AdminExpenses() {
         if (!prev) return prev;
         return {
           ...prev,
-          vendor: (parsed.vendor ?? prev.vendor ?? "").toString(),
+          vendor: String(parsed.vendor ?? prev.vendor ?? ""),
           amount:
-            parsed.amount == null
-              ? prev.amount
-              : String(parsed.amount),
-          currency: (parsed.currency ?? prev.currency ?? "AED").toString(),
-          expense_date: (parsed.expense_date ?? prev.expense_date ?? todayISO()).toString(),
+            parsed.amount == null ? prev.amount : String(parsed.amount ?? ""),
+          currency: String(parsed.currency ?? prev.currency ?? "AED"),
+          expense_date: String(
+            parsed.expense_date ?? prev.expense_date ?? todayISO()
+          ),
           vat: parsed.vat == null ? prev.vat : String(parsed.vat),
-          category: (parsed.category ?? prev.category ?? "").toString(),
-          note: (parsed.note ?? prev.note ?? "").toString(),
+          category: String(parsed.category ?? prev.category ?? ""),
+          note: String(parsed.note ?? prev.note ?? ""),
           status: "ready",
         };
       });
@@ -372,18 +379,22 @@ export default function AdminExpenses() {
     const vendor = editing.vendor.trim() || null;
 
     const amountNum =
-      editing.amount.trim() === "" ? null : Number(editing.amount.replace(",", "."));
+      editing.amount.trim() === ""
+        ? null
+        : Number(editing.amount.replace(",", "."));
+
     const vatNum =
       editing.vat.trim() === "" ? null : Number(editing.vat.replace(",", "."));
 
-    if (amountNum != null && !Number.isFinite(amountNum)) return alert("Amount invalid.");
-    if (vatNum != null && !Number.isFinite(vatNum)) return alert("VAT invalid.");
+    if (amountNum != null && !Number.isFinite(amountNum))
+      return alert("Amount invalid.");
+    if (vatNum != null && !Number.isFinite(vatNum))
+      return alert("VAT invalid.");
 
     setSaving(true);
     try {
       let receipt_url = editing.receipt_url || null;
 
-      // If user picked a new file → upload; if had an old receipt_url → delete old
       if (editing.receiptFile) {
         const newUrl = await uploadReceipt(editing.receiptFile);
 
@@ -433,13 +444,12 @@ export default function AdminExpenses() {
     const ok = window.confirm("Delete this expense?");
     if (!ok) return;
 
-    // optimistic
     setRows((prev) => prev.filter((x) => x.id !== r.id));
 
     try {
       if (r.receipt_url) await deleteReceipt(r.receipt_url);
       await deleteExpenseDb(r.id);
-    } catch (e) {
+    } catch {
       alert("Delete failed. Reloading.");
       await load();
     }
@@ -458,7 +468,8 @@ export default function AdminExpenses() {
               Track costs + scan receipts
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              Manual entries + receipt uploads. AI parsing is via <span className="font-semibold">/api/parse-receipt</span>.
+              Manual entries + receipt uploads. AI parsing via{" "}
+              <span className="font-semibold">/api/parse-receipt</span>.
             </p>
           </div>
 
@@ -491,28 +502,40 @@ export default function AdminExpenses() {
             <p className="mt-2 text-2xl font-semibold text-slate-900">
               {toMoney(overallTotal)}
             </p>
-            <p className="mt-1 text-[11px] text-slate-500">Sum of all rows (all currencies mixed for now).</p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Sum of all rows (currencies mixed for now).
+            </p>
           </div>
 
           {BUSINESS.slice(0, 3).map((b) => (
-            <div key={b} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div
+              key={b}
+              className="rounded-2xl border border-slate-200 bg-white p-4"
+            >
               <p className="text-xs text-slate-500">{b}</p>
               <p className="mt-2 text-2xl font-semibold text-slate-900">
                 {toMoney(totalsByBrand[b])}
               </p>
-              <p className="mt-1 text-[11px] text-slate-500">Total for this business.</p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Total for this business.
+              </p>
             </div>
           ))}
         </div>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {BUSINESS.slice(3).map((b) => (
-            <div key={b} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div
+              key={b}
+              className="rounded-2xl border border-slate-200 bg-white p-4"
+            >
               <p className="text-xs text-slate-500">{b}</p>
               <p className="mt-2 text-2xl font-semibold text-slate-900">
                 {toMoney(totalsByBrand[b])}
               </p>
-              <p className="mt-1 text-[11px] text-slate-500">Total for this business.</p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Total for this business.
+              </p>
             </div>
           ))}
         </div>
@@ -591,9 +614,13 @@ export default function AdminExpenses() {
               <tbody className="divide-y">
                 {filtered.map((r) => (
                   <tr key={r.id} className="bg-white">
-                    <td className="px-4 py-3 text-slate-700">{r.expense_date || "—"}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {r.expense_date || "—"}
+                    </td>
                     <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900">{r.vendor || "—"}</div>
+                      <div className="font-semibold text-slate-900">
+                        {r.vendor || "—"}
+                      </div>
                       {r.note ? (
                         <div className="mt-0.5 text-xs text-slate-500 line-clamp-1">
                           {r.note}
@@ -601,7 +628,9 @@ export default function AdminExpenses() {
                       ) : null}
                     </td>
                     <td className="px-4 py-3 text-slate-700">{r.brand || "—"}</td>
-                    <td className="px-4 py-3 text-slate-700">{r.category || "—"}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {r.category || "—"}
+                    </td>
                     <td className="px-4 py-3 font-semibold text-slate-900">
                       {(r.currency || "AED") + " " + toMoney(r.amount)}
                     </td>
@@ -665,21 +694,32 @@ export default function AdminExpenses() {
             <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 sm:p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">Date</p>
+                  <p className="text-xs font-semibold text-slate-600 mb-1">
+                    Date
+                  </p>
                   <input
                     type="date"
                     value={editing.expense_date}
-                    onChange={(e) => setEditing({ ...editing, expense_date: e.target.value })}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        expense_date: e.target.value,
+                      })
+                    }
                     className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                     disabled={saving || aiBusy}
                   />
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">Brand</p>
+                  <p className="text-xs font-semibold text-slate-600 mb-1">
+                    Brand
+                  </p>
                   <select
                     value={editing.brand}
-                    onChange={(e) => setEditing({ ...editing, brand: e.target.value })}
+                    onChange={(e) =>
+                      setEditing({ ...editing, brand: e.target.value })
+                    }
                     className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
                     disabled={saving || aiBusy}
                   >
@@ -693,10 +733,14 @@ export default function AdminExpenses() {
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-slate-600 mb-1">Vendor</p>
+                <p className="text-xs font-semibold text-slate-600 mb-1">
+                  Vendor
+                </p>
                 <input
                   value={editing.vendor}
-                  onChange={(e) => setEditing({ ...editing, vendor: e.target.value })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, vendor: e.target.value })
+                  }
                   placeholder="e.g. ADNOC, Amazon, Hotel…"
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                   disabled={saving || aiBusy}
@@ -705,21 +749,30 @@ export default function AdminExpenses() {
 
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_140px] gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">Amount</p>
+                  <p className="text-xs font-semibold text-slate-600 mb-1">
+                    Amount
+                  </p>
                   <input
                     value={editing.amount}
-                    onChange={(e) => setEditing({ ...editing, amount: e.target.value })}
+                    onChange={(e) =>
+                      setEditing({ ...editing, amount: e.target.value })
+                    }
                     placeholder="e.g. 125.50"
                     className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                     inputMode="decimal"
                     disabled={saving || aiBusy}
                   />
                 </div>
+
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">Currency</p>
+                  <p className="text-xs font-semibold text-slate-600 mb-1">
+                    Currency
+                  </p>
                   <select
                     value={editing.currency}
-                    onChange={(e) => setEditing({ ...editing, currency: e.target.value })}
+                    onChange={(e) =>
+                      setEditing({ ...editing, currency: e.target.value })
+                    }
                     className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
                     disabled={saving || aiBusy}
                   >
@@ -730,11 +783,16 @@ export default function AdminExpenses() {
                     ))}
                   </select>
                 </div>
+
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">VAT (optional)</p>
+                  <p className="text-xs font-semibold text-slate-600 mb-1">
+                    VAT (optional)
+                  </p>
                   <input
                     value={editing.vat}
-                    onChange={(e) => setEditing({ ...editing, vat: e.target.value })}
+                    onChange={(e) =>
+                      setEditing({ ...editing, vat: e.target.value })
+                    }
                     placeholder="e.g. 5.00"
                     className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                     inputMode="decimal"
@@ -744,10 +802,14 @@ export default function AdminExpenses() {
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-slate-600 mb-1">Category (optional)</p>
+                <p className="text-xs font-semibold text-slate-600 mb-1">
+                  Category (optional)
+                </p>
                 <input
                   value={editing.category}
-                  onChange={(e) => setEditing({ ...editing, category: e.target.value })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, category: e.target.value })
+                  }
                   placeholder="e.g. Fuel, Ads, Office…"
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                   disabled={saving || aiBusy}
@@ -755,10 +817,14 @@ export default function AdminExpenses() {
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-slate-600 mb-1">Note (optional)</p>
+                <p className="text-xs font-semibold text-slate-600 mb-1">
+                  Note (optional)
+                </p>
                 <textarea
                   value={editing.note}
-                  onChange={(e) => setEditing({ ...editing, note: e.target.value })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, note: e.target.value })
+                  }
                   placeholder="Optional note…"
                   className="w-full min-h-[90px] rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                   disabled={saving || aiBusy}
@@ -779,7 +845,11 @@ export default function AdminExpenses() {
                 <button
                   type="button"
                   onClick={onRunAI}
-                  disabled={aiBusy || saving || (!editing.receiptFile && !editing.receipt_url)}
+                  disabled={
+                    aiBusy ||
+                    saving ||
+                    (!editing.receiptFile && !editing.receipt_url)
+                  }
                   className={clsx(
                     "inline-flex items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold border",
                     aiBusy
@@ -801,7 +871,8 @@ export default function AdminExpenses() {
                       alt="Receipt"
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                        (e.currentTarget as HTMLImageElement).style.display =
+                          "none";
                       }}
                     />
                   ) : (
