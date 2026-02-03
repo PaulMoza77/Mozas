@@ -1,85 +1,160 @@
-import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+// src/components/AdminGate.tsx
+import React, { useEffect, useMemo, useState } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { supabase } from "../lib/supabase";
 
-const STORAGE_KEY = "mozas_admin_authed_v1";
+type Props = { children: React.ReactNode };
 
-export default function AdminGate({ children }: { children: React.ReactNode }) {
-  const passcode = import.meta.env.VITE_ADMIN_PASSCODE as string | undefined;
+type GateStatus = "loading" | "need_login" | "denied" | "ok";
 
-  const [input, setInput] = useState("");
-  const [authed, setAuthed] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+export default function AdminGate({ children }: Props) {
+  const loc = useLocation();
 
-  const enabled = useMemo(() => Boolean(passcode && passcode.length >= 6), [passcode]);
+  const [status, setStatus] = useState<GateStatus>("loading");
+  const [deniedMsg, setDeniedMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "1") setAuthed(true);
+  const allowlist = useMemo(() => {
+    const raw = (import.meta.env.VITE_ADMIN_EMAILS as string | undefined) ?? "";
+    return new Set(
+      raw
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    );
   }, []);
 
-  if (!enabled) {
-    // If env var missing/misconfigured, fail closed.
-    return <Navigate to="/" replace />;
-  }
+  const check = async () => {
+    setStatus("loading");
+    setDeniedMsg(null);
 
-  if (authed) return <>{children}</>;
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErr(null);
-
-    if (input === passcode) {
-      localStorage.setItem(STORAGE_KEY, "1");
-      setAuthed(true);
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      setStatus("need_login");
       return;
     }
-    setErr("Wrong passcode.");
+
+    const session = data.session;
+    const email = session?.user?.email?.toLowerCase() ?? "";
+
+    // not logged in
+    if (!session || !email) {
+      setStatus("need_login");
+      return;
+    }
+
+    // allowlist is primary (recommended)
+    if (allowlist.size > 0) {
+      if (!allowlist.has(email)) {
+        setDeniedMsg("Access denied for this account.");
+        setStatus("denied");
+        return;
+      }
+      setStatus("ok");
+      return;
+    }
+
+    // optional claim fallback (only if no allowlist)
+    const isAdminClaim =
+      Boolean((session.user.user_metadata as any)?.is_admin) ||
+      Boolean((session.user.app_metadata as any)?.is_admin);
+
+    if (isAdminClaim) {
+      setStatus("ok");
+      return;
+    }
+
+    setDeniedMsg("Admin is not configured (missing allowlist).");
+    setStatus("denied");
   };
 
-  return (
-    <div className="min-h-screen bg-white text-slate-900 px-6 py-6">
-      <div className="mx-auto w-full max-w-md">
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-            Admin Access
-          </p>
-          <h1 className="mt-2 text-xl font-semibold">Enter passcode</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            This area is restricted.
-          </p>
+  useEffect(() => {
+    let alive = true;
 
-          <form onSubmit={onSubmit} className="mt-5 space-y-3">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              type="password"
-              autoComplete="current-password"
-              placeholder="Passcode"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"
-            />
+    (async () => {
+      if (!alive) return;
+      await check();
+    })();
 
-            {err && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
-                {err}
-              </div>
-            )}
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      if (!alive) return;
+      check();
+    });
 
-            <button
-              type="submit"
-              className="w-full rounded-xl border border-slate-900 bg-slate-900 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              Unlock Admin
-            </button>
+    return () => {
+      alive = false;
+      sub?.subscription?.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowlist.size]);
 
-            <a
-              href="/"
-              className="block text-center text-[11px] text-slate-500 underline underline-offset-2"
-            >
-              Back to site
-            </a>
-          </form>
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (status === "need_login") {
+    return (
+      <Navigate
+        to="/admin/login"
+        replace
+        state={{ from: loc.pathname + loc.search }}
+      />
+    );
+  }
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-white text-slate-900 px-6 py-10">
+        <div className="mx-auto w-full max-w-md">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              Admin
+            </p>
+            <h1 className="mt-2 text-xl font-semibold">Checking access…</h1>
+            <p className="mt-1 text-sm text-slate-500">Please wait a moment.</p>
+            <div className="mt-5 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full w-1/2 bg-slate-900 animate-pulse" />
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (status === "denied") {
+    return (
+      <div className="min-h-screen bg-white text-slate-900 px-6 py-10">
+        <div className="mx-auto w-full max-w-md">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              Admin Access
+            </p>
+            <h1 className="mt-2 text-xl font-semibold">Access denied</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {deniedMsg ?? "Access denied."}
+            </p>
+
+            <div className="mt-5 grid grid-cols-1 gap-2">
+              <button
+                type="button"
+                onClick={signOut}
+                className="w-full rounded-xl border border-slate-900 bg-slate-900 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              >
+                Sign out
+              </button>
+
+              <a
+                href="/"
+                className="block text-center text-[11px] text-slate-500 underline underline-offset-2"
+              >
+                Back to site
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // status === "ok"
+  return <>{children}</>;
 }
