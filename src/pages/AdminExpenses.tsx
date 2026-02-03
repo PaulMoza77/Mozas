@@ -11,7 +11,6 @@ import {
   RefreshCw,
   Sparkles,
 } from "lucide-react";
-
 import { supabase } from "../lib/supabase";
 import {
   fetchExpenses,
@@ -126,7 +125,6 @@ const BUSINESS = [
 ] as const;
 
 const BRAND_OPTIONS = BUSINESS;
-
 const CURRENCY_OPTIONS = ["AED", "EUR", "USD", "RON"] as const;
 
 const STATUS_OPTIONS: Array<DbExpense["status"] | "all"> = [
@@ -353,12 +351,9 @@ export default function AdminExpenses() {
         return {
           ...prev,
           vendor: String(parsed.vendor ?? prev.vendor ?? ""),
-          amount:
-            parsed.amount == null ? prev.amount : String(parsed.amount ?? ""),
+          amount: parsed.amount == null ? prev.amount : String(parsed.amount ?? ""),
           currency: String(parsed.currency ?? prev.currency ?? "AED"),
-          expense_date: String(
-            parsed.expense_date ?? prev.expense_date ?? todayISO()
-          ),
+          expense_date: String(parsed.expense_date ?? prev.expense_date ?? todayISO()),
           vat: parsed.vat == null ? prev.vat : String(parsed.vat),
           category: String(parsed.category ?? prev.category ?? ""),
           note: String(parsed.note ?? prev.note ?? ""),
@@ -388,8 +383,7 @@ export default function AdminExpenses() {
 
     if (amountNum != null && !Number.isFinite(amountNum))
       return alert("Amount invalid.");
-    if (vatNum != null && !Number.isFinite(vatNum))
-      return alert("VAT invalid.");
+    if (vatNum != null && !Number.isFinite(vatNum)) return alert("VAT invalid.");
 
     setSaving(true);
     try {
@@ -508,34 +502,24 @@ export default function AdminExpenses() {
           </div>
 
           {BUSINESS.slice(0, 3).map((b) => (
-            <div
-              key={b}
-              className="rounded-2xl border border-slate-200 bg-white p-4"
-            >
+            <div key={b} className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs text-slate-500">{b}</p>
               <p className="mt-2 text-2xl font-semibold text-slate-900">
                 {toMoney(totalsByBrand[b])}
               </p>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Total for this business.
-              </p>
+              <p className="mt-1 text-[11px] text-slate-500">Total for this business.</p>
             </div>
           ))}
         </div>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {BUSINESS.slice(3).map((b) => (
-            <div
-              key={b}
-              className="rounded-2xl border border-slate-200 bg-white p-4"
-            >
+            <div key={b} className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs text-slate-500">{b}</p>
               <p className="mt-2 text-2xl font-semibold text-slate-900">
                 {toMoney(totalsByBrand[b])}
               </p>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Total for this business.
-              </p>
+              <p className="mt-1 text-[11px] text-slate-500">Total for this business.</p>
             </div>
           ))}
         </div>
@@ -614,13 +598,9 @@ export default function AdminExpenses() {
               <tbody className="divide-y">
                 {filtered.map((r) => (
                   <tr key={r.id} className="bg-white">
-                    <td className="px-4 py-3 text-slate-700">
-                      {r.expense_date || "—"}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{r.expense_date || "—"}</td>
                     <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900">
-                        {r.vendor || "—"}
-                      </div>
+                      <div className="font-semibold text-slate-900">{r.vendor || "—"}</div>
                       {r.note ? (
                         <div className="mt-0.5 text-xs text-slate-500 line-clamp-1">
                           {r.note}
@@ -628,9 +608,7 @@ export default function AdminExpenses() {
                       ) : null}
                     </td>
                     <td className="px-4 py-3 text-slate-700">{r.brand || "—"}</td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {r.category || "—"}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{r.category || "—"}</td>
                     <td className="px-4 py-3 font-semibold text-slate-900">
                       {(r.currency || "AED") + " " + toMoney(r.amount)}
                     </td>
@@ -694,17 +672,12 @@ export default function AdminExpenses() {
             <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 sm:p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">
-                    Date
-                  </p>
+                  <p className="text-xs font-semibold text-slate-600 mb-1">Date</p>
                   <input
                     type="date"
                     value={editing.expense_date}
                     onChange={(e) =>
-                      setEditing({
-                        ...editing,
-                        expense_date: e.target.value,
-                      })
+                      setEditing({ ...editing, expense_date: e.target.value })
                     }
                     className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                     disabled={saving || aiBusy}
@@ -712,14 +685,10 @@ export default function AdminExpenses() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">
-                    Brand
-                  </p>
+                  <p className="text-xs font-semibold text-slate-600 mb-1">Brand</p>
                   <select
                     value={editing.brand}
-                    onChange={(e) =>
-                      setEditing({ ...editing, brand: e.target.value })
-                    }
+                    onChange={(e) => setEditing({ ...editing, brand: e.target.value })}
                     className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
                     disabled={saving || aiBusy}
                   >
@@ -733,14 +702,10 @@ export default function AdminExpenses() {
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-slate-600 mb-1">
-                  Vendor
-                </p>
+                <p className="text-xs font-semibold text-slate-600 mb-1">Vendor</p>
                 <input
                   value={editing.vendor}
-                  onChange={(e) =>
-                    setEditing({ ...editing, vendor: e.target.value })
-                  }
+                  onChange={(e) => setEditing({ ...editing, vendor: e.target.value })}
                   placeholder="e.g. ADNOC, Amazon, Hotel…"
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                   disabled={saving || aiBusy}
@@ -749,14 +714,10 @@ export default function AdminExpenses() {
 
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_140px] gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">
-                    Amount
-                  </p>
+                  <p className="text-xs font-semibold text-slate-600 mb-1">Amount</p>
                   <input
                     value={editing.amount}
-                    onChange={(e) =>
-                      setEditing({ ...editing, amount: e.target.value })
-                    }
+                    onChange={(e) => setEditing({ ...editing, amount: e.target.value })}
                     placeholder="e.g. 125.50"
                     className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                     inputMode="decimal"
@@ -765,14 +726,10 @@ export default function AdminExpenses() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">
-                    Currency
-                  </p>
+                  <p className="text-xs font-semibold text-slate-600 mb-1">Currency</p>
                   <select
                     value={editing.currency}
-                    onChange={(e) =>
-                      setEditing({ ...editing, currency: e.target.value })
-                    }
+                    onChange={(e) => setEditing({ ...editing, currency: e.target.value })}
                     className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
                     disabled={saving || aiBusy}
                   >
@@ -790,9 +747,7 @@ export default function AdminExpenses() {
                   </p>
                   <input
                     value={editing.vat}
-                    onChange={(e) =>
-                      setEditing({ ...editing, vat: e.target.value })
-                    }
+                    onChange={(e) => setEditing({ ...editing, vat: e.target.value })}
                     placeholder="e.g. 5.00"
                     className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                     inputMode="decimal"
@@ -807,9 +762,7 @@ export default function AdminExpenses() {
                 </p>
                 <input
                   value={editing.category}
-                  onChange={(e) =>
-                    setEditing({ ...editing, category: e.target.value })
-                  }
+                  onChange={(e) => setEditing({ ...editing, category: e.target.value })}
                   placeholder="e.g. Fuel, Ads, Office…"
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                   disabled={saving || aiBusy}
@@ -817,14 +770,10 @@ export default function AdminExpenses() {
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-slate-600 mb-1">
-                  Note (optional)
-                </p>
+                <p className="text-xs font-semibold text-slate-600 mb-1">Note (optional)</p>
                 <textarea
                   value={editing.note}
-                  onChange={(e) =>
-                    setEditing({ ...editing, note: e.target.value })
-                  }
+                  onChange={(e) => setEditing({ ...editing, note: e.target.value })}
                   placeholder="Optional note…"
                   className="w-full min-h-[90px] rounded-2xl border border-slate-200 px-3 py-2 text-sm"
                   disabled={saving || aiBusy}
@@ -846,9 +795,7 @@ export default function AdminExpenses() {
                   type="button"
                   onClick={onRunAI}
                   disabled={
-                    aiBusy ||
-                    saving ||
-                    (!editing.receiptFile && !editing.receipt_url)
+                    aiBusy || saving || (!editing.receiptFile && !editing.receipt_url)
                   }
                   className={clsx(
                     "inline-flex items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold border",
@@ -871,8 +818,7 @@ export default function AdminExpenses() {
                       alt="Receipt"
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display =
-                          "none";
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
                       }}
                     />
                   ) : (

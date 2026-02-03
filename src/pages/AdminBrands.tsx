@@ -1,3 +1,4 @@
+// src/pages/AdminBrands.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
@@ -30,52 +31,53 @@ const BADGE_OPTIONS = ["Global", "EU", "SUA", "UAE", "Asia"] as const;
 // bucket name in Supabase Storage
 const LOGO_BUCKET = "mozas-assets";
 
-const DEFAULT_HOME_BRANDS: Array<Omit<BrandRow, "id" | "created_at" | "updated_at">> = [
-  {
-    name: "Volocar",
-    slug: "volocar",
-    description:
-      "Premium mobility marketplace across the UAE & EU: Rentals, Monthly, Sales, Concierge & Elite Services.",
-    logo_url: null,
-    overview_url: "https://volocar.ae",
-    badges: ["UAE", "EU"],
-    sort_order: 10,
-    is_active: true,
-  },
-  {
-    name: "TheDigitalGifter",
-    slug: "thedigitalgifter",
-    description:
-      "AI-powered greeting cards, videos & custom image creation. Personalized gifts in seconds.",
-    logo_url: null,
-    overview_url: "https://thedigitalgifter.com",
-    badges: ["Global"],
-    sort_order: 20,
-    is_active: true,
-  },
-  {
-    name: "Starscale",
-    slug: "starscale",
-    description:
-      "Creative digital agency & personal branding accelerator: content, ads, growth, performance.",
-    logo_url: null,
-    overview_url: "https://starscale.ro",
-    badges: ["Global"],
-    sort_order: 30,
-    is_active: true,
-  },
-  {
-    name: "BRNDLY.",
-    slug: "brndly",
-    description:
-      "Branding & creative asset studio: logos, packaging, product visuals, and brand systems.",
-    logo_url: null,
-    overview_url: "https://brndly.ro",
-    badges: ["EU", "UAE"],
-    sort_order: 40,
-    is_active: true,
-  },
-];
+const DEFAULT_HOME_BRANDS: Array<Omit<BrandRow, "id" | "created_at" | "updated_at">> =
+  [
+    {
+      name: "Volocar",
+      slug: "volocar",
+      description:
+        "Premium mobility marketplace across the UAE & EU: Rentals, Monthly, Sales, Concierge & Elite Services.",
+      logo_url: null,
+      overview_url: "https://volocar.ae",
+      badges: ["UAE", "EU"],
+      sort_order: 10,
+      is_active: true,
+    },
+    {
+      name: "TheDigitalGifter",
+      slug: "thedigitalgifter",
+      description:
+        "AI-powered greeting cards, videos & custom image creation. Personalized gifts in seconds.",
+      logo_url: null,
+      overview_url: "https://thedigitalgifter.com",
+      badges: ["Global"],
+      sort_order: 20,
+      is_active: true,
+    },
+    {
+      name: "Starscale",
+      slug: "starscale",
+      description:
+        "Creative digital agency & personal branding accelerator: content, ads, growth, performance.",
+      logo_url: null,
+      overview_url: "https://starscale.ro",
+      badges: ["Global"],
+      sort_order: 30,
+      is_active: true,
+    },
+    {
+      name: "BRNDLY.",
+      slug: "brndly",
+      description:
+        "Branding & creative asset studio: logos, packaging, product visuals, and brand systems.",
+      logo_url: null,
+      overview_url: "https://brndly.ro",
+      badges: ["EU", "UAE"],
+      sort_order: 40,
+      is_active: true,
+    },
+  ];
 
 function cx(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -215,7 +217,8 @@ export default function AdminBrands() {
     if (!s) return "Slug is required.";
     if (!description.trim()) return "Description is required.";
     if (!overviewUrl.trim()) return "Overview URL is required.";
-    if (!isUrlLike(overviewUrl)) return "Overview URL must start with http(s)://";
+    if (!isUrlLike(overviewUrl))
+      return "Overview URL must start with http(s)://";
     if (!Number.isFinite(Number(sortOrder))) return "Sort order must be a number.";
     return null;
   }
@@ -228,13 +231,11 @@ export default function AdminBrands() {
     const ext = extFromFile(file);
     const path = `brands/${safeSlug}-${Date.now()}.${ext}`;
 
-    const { error: upErr } = await supabase.storage
-      .from(LOGO_BUCKET)
-      .upload(path, file, {
-        upsert: true,
-        cacheControl: "3600",
-        contentType: file.type || undefined,
-      });
+    const { error: upErr } = await supabase.storage.from(LOGO_BUCKET).upload(path, file, {
+      upsert: true,
+      cacheControl: "3600",
+      contentType: file.type || undefined,
+    });
 
     if (upErr) {
       setLogoUploading(false);
@@ -334,6 +335,7 @@ export default function AdminBrands() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-white to-slate-50">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
@@ -385,6 +387,7 @@ export default function AdminBrands() {
           </div>
         ) : null}
 
+        {/* List */}
         <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_60px_-40px_rgba(0,0,0,0.25)]">
           <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
             <p className="text-sm font-semibold text-slate-900">
@@ -421,7 +424,9 @@ export default function AdminBrands() {
 
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-semibold text-slate-900">{r.name}</p>
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {r.name}
+                      </p>
 
                       <span
                         className={cx(
@@ -444,7 +449,9 @@ export default function AdminBrands() {
                       ))}
                     </div>
 
-                    <p className="mt-1 line-clamp-2 text-sm text-slate-500">{r.description}</p>
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-500">
+                      {r.description}
+                    </p>
 
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className="rounded-xl bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-500">
@@ -524,6 +531,7 @@ export default function AdminBrands() {
         </div>
       </div>
 
+      {/* Dialog */}
       {dialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_40px_120px_-70px_rgba(0,0,0,0.6)]">
@@ -598,6 +606,7 @@ export default function AdminBrands() {
                   />
                 </div>
 
+                {/* Logo upload */}
                 <div className="sm:col-span-2">
                   <label className="text-xs font-semibold text-slate-700">Logo</label>
 
@@ -605,7 +614,11 @@ export default function AdminBrands() {
                     <div className="flex items-center gap-3">
                       <div className="h-12 w-12 overflow-hidden rounded-2xl border border-slate-200 bg-white">
                         {logoUrl ? (
-                          <img src={logoUrl} alt="logo" className="h-full w-full object-contain" />
+                          <img
+                            src={logoUrl}
+                            alt="logo"
+                            className="h-full w-full object-contain"
+                          />
                         ) : null}
                       </div>
                       <div className="min-w-0">
@@ -638,7 +651,9 @@ export default function AdminBrands() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="text-xs font-semibold text-slate-700">Overview URL (redirect)</label>
+                  <label className="text-xs font-semibold text-slate-700">
+                    Overview URL (redirect)
+                  </label>
                   <input
                     value={overviewUrl}
                     onChange={(e) => setOverviewUrl(e.target.value)}
@@ -679,7 +694,9 @@ export default function AdminBrands() {
                       onClick={() => setIsActive(true)}
                       className={cx(
                         "rounded-2xl px-4 py-2 text-sm font-semibold",
-                        isActive ? "bg-emerald-600 text-white" : "border border-slate-200 bg-white text-slate-700"
+                        isActive
+                          ? "bg-emerald-600 text-white"
+                          : "border border-slate-200 bg-white text-slate-700"
                       )}
                     >
                       Active
@@ -689,7 +706,9 @@ export default function AdminBrands() {
                       onClick={() => setIsActive(false)}
                       className={cx(
                         "rounded-2xl px-4 py-2 text-sm font-semibold",
-                        !isActive ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700"
+                        !isActive
+                          ? "bg-slate-900 text-white"
+                          : "border border-slate-200 bg-white text-slate-700"
                       )}
                     >
                       Hidden
