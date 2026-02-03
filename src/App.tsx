@@ -8,6 +8,7 @@ import AdminBrands from "./pages/AdminBrands";
 import AdminExpenses from "./pages/AdminExpenses";
 
 export default function App() {
+  /// Routing
   return (
     <BrowserRouter>
       <Routes>
