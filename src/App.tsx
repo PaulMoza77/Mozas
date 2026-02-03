@@ -1,8 +1,7 @@
 // src/App.tsx
-import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import Home from "./pages/Home";
+import { Home } from "./pages/Home";
 import Expenses from "./pages/Expenses";
 
 import Admin from "./pages/Admin";
