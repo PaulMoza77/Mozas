@@ -1,14 +1,14 @@
+// src/pages/AdminLogin.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
-function buildRedirectTo(path: string) {
-  // Works for BrowserRouter and HashRouter
-  // If your app uses HashRouter, keep "/#/" in redirect.
-  const usesHash = window.location.hash.startsWith("#/");
-  return usesHash
-    ? `${window.location.origin}/#${path}`
-    : `${window.location.origin}${path}`;
+// ✅ Always return to your production domain after OAuth
+const PROD_ORIGIN = "https://themozas.com";
+
+function safePath(p: string) {
+  if (!p || typeof p !== "string") return "/admin";
+  return p.startsWith("/") ? p : "/admin";
 }
 
 export default function AdminLogin() {
@@ -19,13 +19,14 @@ export default function AdminLogin() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // if user came from a protected page, AdminGate sent it here
-  const returnTo = useMemo(() => {
+  // If user came from AdminGate, we keep that path; default /admin
+  const returnPath = useMemo(() => {
     const state = loc.state as any;
-    const from = typeof state?.from === "string" ? state.from : "/admin";
-    // normalize (avoid full URLs)
-    return from.startsWith("/") ? from : "/admin";
+    return safePath(typeof state?.from === "string" ? state.from : "/admin");
   }, [loc.state]);
+
+  // ✅ Redirect target for Supabase OAuth
+  const redirectTo = useMemo(() => `${PROD_ORIGIN}${returnPath}`, [returnPath]);
 
   useEffect(() => {
     let alive = true;
@@ -36,7 +37,7 @@ export default function AdminLogin() {
       if (!alive) return;
 
       if (data.session?.user?.email) {
-        nav(returnTo, { replace: true });
+        nav(returnPath, { replace: true });
         return;
       }
       setLoading(false);
@@ -45,7 +46,7 @@ export default function AdminLogin() {
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
       if (!alive) return;
       if (session?.user?.email) {
-        nav(returnTo, { replace: true });
+        nav(returnPath, { replace: true });
       }
     });
 
@@ -53,7 +54,7 @@ export default function AdminLogin() {
       alive = false;
       sub?.subscription?.unsubscribe();
     };
-  }, [nav, returnTo]);
+  }, [nav, returnPath]);
 
   const signInGoogle = async () => {
     setBusy(true);
@@ -62,9 +63,7 @@ export default function AdminLogin() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        // after Supabase callback, send user back to your app
-        redirectTo: buildRedirectTo(returnTo),
-        // optional: force account chooser
+        redirectTo, // ✅ always goes to https://themozas.com/admin (or /admin/...)
         queryParams: { prompt: "select_account" },
       },
     });
@@ -78,9 +77,7 @@ export default function AdminLogin() {
       <div className="min-h-screen bg-white text-slate-900 px-6 py-10">
         <div className="mx-auto w-full max-w-md">
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-              Admin
-            </p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Admin</p>
             <h1 className="mt-2 text-xl font-semibold">Loading…</h1>
             <p className="mt-1 text-sm text-slate-500">Checking session.</p>
           </div>
@@ -93,13 +90,9 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-white text-slate-900 px-6 py-10">
       <div className="mx-auto w-full max-w-md">
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-            Admin Access
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Admin Access</p>
           <h1 className="mt-2 text-xl font-semibold">Sign in</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Continue with Google to access admin.
-          </p>
+          <p className="mt-1 text-sm text-slate-500">Continue with Google to access admin.</p>
 
           {err && (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
