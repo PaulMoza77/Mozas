@@ -13,6 +13,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
   const enabled = useMemo(() => Boolean(passcode && passcode.length >= 6), [passcode]);
 
   useEffect(() => {
+    console.log("Component mounted, checking auth...");
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === "1") setAuthed(true);
   }, []);
