@@ -6,7 +6,6 @@ import {
   Upload,
   X,
   Trash2,
-  Save,
   FileText,
   Search,
   ChevronDown,
@@ -45,7 +44,9 @@ function money(n: any) {
 }
 
 function formatAgg(agg: Record<string, number>) {
-  const entries = Object.entries(agg).filter(([, v]) => Number.isFinite(v) && v !== 0);
+  const entries = Object.entries(agg).filter(
+    ([, v]) => Number.isFinite(v) && v !== 0
+  );
   if (entries.length === 0) return "—";
   return entries
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -93,8 +94,12 @@ function ModalShell({
       <div className="relative w-full sm:w-[min(1040px,92vw)] max-h-[92vh] overflow-hidden rounded-t-3xl sm:rounded-3xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 p-5 sm:p-6 border-b border-slate-200 bg-white/90 backdrop-blur">
           <div className="min-w-0">
-            <p className="text-lg sm:text-xl font-semibold text-slate-900 truncate">{title}</p>
-            {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
+            <p className="text-lg sm:text-xl font-semibold text-slate-900 truncate">
+              {title}
+            </p>
+            {subtitle ? (
+              <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -105,11 +110,49 @@ function ModalShell({
             Close
           </button>
         </div>
-        <div className="max-h-[calc(92vh-84px)] overflow-auto p-5 sm:p-6">{children}</div>
+        <div className="max-h-[calc(92vh-84px)] overflow-auto p-5 sm:p-6">
+          {children}
+        </div>
       </div>
     </div>
   );
 }
+
+/** =========================
+ * Category Tree (edit as you want)
+ * ========================= */
+const CATEGORY_TREE: {
+  personal: Record<string, string[]>;
+  business: Record<string, string[]>;
+} = {
+  personal: {
+    "Lifestyle": ["Food", "Transport", "Shopping", "Health", "Travel", "Other"],
+    "Home": ["Rent", "Utilities", "Internet", "Repairs", "Other"],
+    "Family": ["Kids", "Gifts", "Other"],
+  },
+  business: {
+    "Operational": [
+      "Combustibil",
+      "Transport",
+      "Consumabile",
+      "Chirie",
+      "Utilitati",
+      "Echipamente",
+      "Mentenanta",
+      "Other",
+    ],
+    "Marketing": ["Ads", "Influencers", "Content", "PR", "Other"],
+    "Legal & Admin": ["Contabilitate", "Avocat", "Taxe", "Licente", "Other"],
+    "Software": ["SaaS", "Hosting", "Domains", "Tools", "Other"],
+    "Payroll": ["Salarii", "Comisioane", "Contractori", "Other"],
+  },
+};
+
+type AiSuggestion = {
+  main: string;
+  sub: string;
+  confidence: number;
+};
 
 type Draft = {
   id?: string;
@@ -118,12 +161,17 @@ type Draft = {
   amount: string; // UI text
   currency: string;
   vat: string;
-  category: string;
+  category: string; // stored string "Main / Sub"
   brand: string;
   note: string;
 
+  // new fields (editor v2)
+  mainCategory: string;
+  subCategory: string;
+  aiSuggestion: AiSuggestion | null;
+
   receipt_url: string;
-  receiptPreview: string; // url for preview
+  receiptPreview: string;
   receiptFile?: File | null;
 
   status: DbExpense["status"];
@@ -141,14 +189,14 @@ const BRAND_DISPLAY: Record<string, string> = {
 const DASH_BRANDS = ["Mozas", "Volocar", "TDG", "Brandly", "GetSureDrive", "Personal"] as const;
 
 const CURRENCY_OPTIONS = ["AED", "EUR", "USD", "RON"];
-const STATUS_OPTIONS: Array<DbExpense["status"] | "all"> = [
-  "all",
+const EXPENSE_STATUS: Array<DbExpense["status"]> = [
   "draft",
   "pending_ai",
   "ready",
   "confirmed",
   "error",
 ];
+const STATUS_OPTIONS: Array<DbExpense["status"] | "all"> = ["all", ...EXPENSE_STATUS];
 
 type PeriodKey = "day" | "week" | "month" | "qtr" | "year" | "all";
 const PERIODS: Array<{ key: PeriodKey; label: string }> = [
@@ -243,10 +291,11 @@ function CategoryCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-slate-500 truncate">{title}</p>
-          <p className="mt-2 text-base sm:text-lg font-semibold text-slate-900">{valueText}</p>
+          <p className="mt-2 text-base sm:text-lg font-semibold text-slate-900">
+            {valueText}
+          </p>
         </div>
 
-        {/* dropdown inside each card (global control, per your request “in the card”) */}
         <div className="shrink-0">
           <div className="relative">
             <select
@@ -268,7 +317,7 @@ function CategoryCard({
 }
 
 /** =========================
- * Top Bar (period + nav on same level)
+ * Top Bar
  * ========================= */
 function TopAdminBar({
   period,
@@ -285,7 +334,6 @@ function TopAdminBar({
   return (
     <div className="rounded-3xl border border-slate-200 bg-white/80 p-3 sm:p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        {/* Left: title + period */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:justify-start lg:gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
@@ -311,7 +359,6 @@ function TopAdminBar({
           </div>
         </div>
 
-        {/* Right: nav */}
         <div className="flex flex-wrap gap-2">
           <NavLink
             to="/admin"
@@ -338,26 +385,40 @@ function TopAdminBar({
   );
 }
 
+function splitCategory(cat: string): { main: string; sub: string } {
+  const raw = normalizeCategory(cat);
+  if (!raw) return { main: "", sub: "" };
+  const parts = raw.split(" / ").map((x) => x.trim()).filter(Boolean);
+  if (parts.length >= 2) return { main: parts[0], sub: parts.slice(1).join(" / ") };
+  // fallback for legacy "Main/Sub" or "Main - Sub"
+  const m1 = raw.split("/").map((x) => x.trim()).filter(Boolean);
+  if (m1.length >= 2) return { main: m1[0], sub: m1.slice(1).join(" / ") };
+  const m2 = raw.split(" - ").map((x) => x.trim()).filter(Boolean);
+  if (m2.length >= 2) return { main: m2[0], sub: m2.slice(1).join(" / ") };
+  return { main: raw, sub: "" };
+}
+
+function buildCategory(main: string, sub: string) {
+  const m = String(main || "").trim();
+  const s = String(sub || "").trim();
+  if (!m || !s) return "";
+  return `${m} / ${s}`;
+}
+
 export default function AdminExpenses() {
   const [rows, setRows] = useState<DbExpense[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // period is now top-level in bar
   const [period, setPeriod] = useState<PeriodKey>("month");
 
-  // search + filters
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_OPTIONS)[number]>("all");
 
-  // IMPORTANT: brandFilter & categoryFilter should NOT hide other brand totals in dashboard.
-  // They only filter Categories cards + Transactions table.
   const [brandFilter, setBrandFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  // category card metric dropdown (inside cards)
   const [catMetric, setCatMetric] = useState<CatCardMetric>("sum");
 
-  // editor
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -379,8 +440,66 @@ export default function AdminExpenses() {
   }, []);
 
   /** =========================
-   * Base filter (period + status + search)
-   * This feeds dashboard totals for ALL brands (always visible).
+   * AUTO-SUGGEST CATEGORY (by vendor)
+   * ========================= */
+  useEffect(() => {
+    if (!editorOpen || !editing) return;
+    if (!editing.vendor) return;
+    if (editing.mainCategory) return;
+
+    const v = editing.vendor.toLowerCase().trim();
+    if (!v) return;
+
+    const match = rows.find((r) => {
+      const rv = String(r.vendor ?? "").toLowerCase().trim();
+      if (!rv || rv !== v) return false;
+      if ((r.brand || "") !== editing.brand) return false;
+      const c = normalizeCategory(r.category);
+      return c.includes(" / ");
+    });
+
+    if (match) {
+      const { main, sub } = splitCategory(match.category || "");
+      if (main && sub) {
+        setEditing((prev) =>
+          prev
+            ? {
+                ...prev,
+                mainCategory: main,
+                subCategory: sub,
+              }
+            : prev
+        );
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorOpen, editing?.vendor, editing?.brand, editing?.mainCategory, rows]);
+
+  /** =========================
+   * AI SUGGESTION (mock – ready)
+   * ========================= */
+  useEffect(() => {
+    if (!editorOpen || !editing) return;
+    if (!editing.receiptPreview) return;
+    if (editing.aiSuggestion) return;
+
+    // MOCK – aici va veni AI real
+    setEditing((prev) =>
+      prev
+        ? {
+            ...prev,
+            aiSuggestion: {
+              main: "Operational",
+              sub: "Combustibil",
+              confidence: 92,
+            },
+          }
+        : prev
+    );
+  }, [editorOpen, editing?.receiptPreview, editing?.aiSuggestion]);
+
+  /** =========================
+   * Base filter (period + status + search) => dashboard totals ALL brands
    * ========================= */
   const base = useMemo(() => {
     const qq = q.trim().toLowerCase();
@@ -412,8 +531,7 @@ export default function AdminExpenses() {
   }, [rows, q, statusFilter, period]);
 
   /** =========================
-   * Scope = base + optional brandFilter
-   * (Used for categories + transactions table)
+   * Scope = base + optional brandFilter => categories + table
    * ========================= */
   const scope = useMemo(() => {
     if (brandFilter === "all") return base;
@@ -421,8 +539,7 @@ export default function AdminExpenses() {
   }, [base, brandFilter]);
 
   /** =========================
-   * Final = scope + optional categoryFilter
-   * (Transactions table)
+   * Final = scope + optional categoryFilter => table
    * ========================= */
   const filtered = useMemo(() => {
     if (categoryFilter === "all") return scope;
@@ -431,7 +548,6 @@ export default function AdminExpenses() {
 
   /** =========================
    * Dashboard aggregates (ALWAYS from base)
-   * so brand selection doesn't “make others disappear”
    * ========================= */
   const dashboard = useMemo(() => {
     const total = sumByCurrency(base);
@@ -449,7 +565,7 @@ export default function AdminExpenses() {
   }, [base]);
 
   /** =========================
-   * Category pills options (from scope, so they react to selected brand)
+   * Category options (from scope)
    * ========================= */
   const categoryOptions = useMemo(() => {
     const set = new Set<string>();
@@ -461,10 +577,13 @@ export default function AdminExpenses() {
   }, [scope]);
 
   /** =========================
-   * Top 6 categories cards (from scope, so they react to selected brand)
+   * Top 6 categories cards (from scope)
    * ========================= */
   const topCategories = useMemo(() => {
-    const map = new Map<string, { sumByCur: Record<string, number>; count: number; totalNumeric: number }>();
+    const map = new Map<
+      string,
+      { sumByCur: Record<string, number>; count: number; totalNumeric: number }
+    >();
 
     for (const r of scope) {
       const c = normalizeCategory(r.category);
@@ -489,14 +608,10 @@ export default function AdminExpenses() {
       ...v,
     }));
 
-    // always sort by totalNumeric (top spend), even if you display count
     arr.sort((a, b) => b.totalNumeric - a.totalNumeric);
     return arr.slice(0, 6);
   }, [scope]);
 
-  /** =========================
-   * Brand card click = filter ONLY table+categories (dashboard stays full)
-   * ========================= */
   const toggleBrand = (b: string | "all") => {
     setCategoryFilter("all");
     setBrandFilter((prev) => (prev === b ? "all" : b));
@@ -519,6 +634,9 @@ export default function AdminExpenses() {
       category: "",
       brand: "Mozas",
       note: "",
+      mainCategory: "",
+      subCategory: "",
+      aiSuggestion: null,
       receipt_url: "",
       receiptPreview: "",
       receiptFile: null,
@@ -528,6 +646,7 @@ export default function AdminExpenses() {
   };
 
   const openEdit = (r: DbExpense) => {
+    const cat = splitCategory(r.category || "");
     setEditing({
       id: r.id,
       expense_date: r.expense_date || todayISO(),
@@ -538,6 +657,9 @@ export default function AdminExpenses() {
       category: r.category || "",
       brand: r.brand || "Mozas",
       note: r.note || "",
+      mainCategory: cat.main || "",
+      subCategory: cat.sub || "",
+      aiSuggestion: null,
       receipt_url: r.receipt_url || "",
       receiptPreview: r.receipt_url || "",
       receiptFile: null,
@@ -560,6 +682,10 @@ export default function AdminExpenses() {
 
   const onSave = async () => {
     if (!editing) return;
+
+    // ensure category from main/sub
+    const category = buildCategory(editing.mainCategory, editing.subCategory);
+    if (!category) return alert("Categoria și subcategoria sunt obligatorii.");
 
     const expense_date = editing.expense_date || null;
     const vendor = editing.vendor.trim() || null;
@@ -591,7 +717,7 @@ export default function AdminExpenses() {
         amount: amountNum,
         currency: (editing.currency || "AED").toUpperCase(),
         vat: vatNum,
-        category: editing.category.trim() || null,
+        category: category,
         brand: editing.brand.trim() || null,
         note: editing.note.trim() || null,
         receipt_url,
@@ -635,25 +761,34 @@ export default function AdminExpenses() {
   };
 
   const selectedBrandLabel =
-    brandFilter === "all" ? "All brands" : (BRAND_DISPLAY[brandFilter] || brandFilter);
-  const selectedCategoryLabel = categoryFilter === "all" ? "All categories" : categoryFilter;
+    brandFilter === "all" ? "All brands" : BRAND_DISPLAY[brandFilter] || brandFilter;
+  const selectedCategoryLabel =
+    categoryFilter === "all" ? "All categories" : categoryFilter;
+
+  const isPersonal = editing?.brand === "Personal";
+  const categoryRoot = isPersonal ? CATEGORY_TREE.personal : CATEGORY_TREE.business;
+  const mainCategories = useMemo(() => Object.keys(categoryRoot), [categoryRoot]);
+  const subCategories = useMemo(() => {
+    if (!editing?.mainCategory) return [];
+    const list = categoryRoot[editing.mainCategory];
+    return Array.isArray(list) ? list : [];
+  }, [editing?.mainCategory, categoryRoot]);
 
   return (
     <div className="space-y-5">
-      {/* Top bar: period on left, nav on right */}
       <TopAdminBar period={period} setPeriod={setPeriod} />
 
-      {/* DASHBOARD (no extra big title — avoid redundancy) */}
+      {/* DASHBOARD */}
       <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 sm:p-6">
-        {/* Brand cards */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
-          {/* Total card */}
           <button
             type="button"
             onClick={() => toggleBrand("all")}
             className={clsx(
               "text-left lg:col-span-2 rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
-              brandFilter === "all" ? "border-slate-900 ring-1 ring-slate-900/10" : "border-slate-200"
+              brandFilter === "all"
+                ? "border-slate-900 ring-1 ring-slate-900/10"
+                : "border-slate-200"
             )}
             title="Click: show all brands (for table + categories)"
           >
@@ -716,7 +851,6 @@ export default function AdminExpenses() {
             </div>
           </div>
 
-          {/* Category pills */}
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
@@ -748,7 +882,6 @@ export default function AdminExpenses() {
             ))}
           </div>
 
-          {/* Top 6 category cards */}
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {topCategories.length === 0 ? (
               <div className="sm:col-span-2 lg:col-span-3 rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
@@ -758,9 +891,7 @@ export default function AdminExpenses() {
               topCategories.map((c) => {
                 const active = categoryFilter === c.category;
                 const valueText =
-                  catMetric === "count"
-                    ? `${c.count} tranzacții`
-                    : formatAgg(c.sumByCur);
+                  catMetric === "count" ? `${c.count} tranzacții` : formatAgg(c.sumByCur);
 
                 return (
                   <CategoryCard
@@ -802,7 +933,6 @@ export default function AdminExpenses() {
           </button>
         </div>
 
-        {/* Filters row (mobile friendly) */}
         <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-[1fr_220px_220px]">
           <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
             <Search className="h-4 w-4 text-slate-400" />
@@ -891,9 +1021,13 @@ export default function AdminExpenses() {
                       ) : null}
                     </td>
 
-                    <td className="px-4 py-3 text-slate-700">{getBrandDisplay(r.brand || "")}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {getBrandDisplay(r.brand || "")}
+                    </td>
 
-                    <td className="px-4 py-3 text-slate-700">{normalizeCategory(r.category) || "—"}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {normalizeCategory(r.category) || "—"}
+                    </td>
 
                     <td className="px-4 py-3 font-semibold text-slate-900">
                       {(r.currency || "AED").toUpperCase()} {money(r.amount)}
@@ -956,33 +1090,43 @@ export default function AdminExpenses() {
         )}
       </div>
 
-      {/* EDITOR */}
+      {/* EDITOR (integrated exact layout, fixed hooks) */}
       {editorOpen && editing ? (
         <ModalShell
           title={editing.id ? "Edit expense" : "New expense"}
-          subtitle="Fill details and optionally upload a receipt."
+          subtitle="Categoria este obligatorie"
           onClose={closeEditor}
         >
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
-            {/* Left fields */}
+            {/* LEFT */}
             <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 sm:p-6">
+              {/* Date + Brand */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">Date</p>
+                  <p className="text-xs font-semibold mb-1">Date</p>
                   <input
                     type="date"
                     value={editing.expense_date}
-                    onChange={(e) => setEditing({ ...editing, expense_date: e.target.value })}
-                    className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                    onChange={(e) =>
+                      setEditing({ ...editing, expense_date: e.target.value })
+                    }
+                    className="w-full rounded-2xl border px-3 py-2 text-sm"
                   />
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">Brand</p>
+                  <p className="text-xs font-semibold mb-1">Brand</p>
                   <select
                     value={editing.brand}
-                    onChange={(e) => setEditing({ ...editing, brand: e.target.value })}
-                    className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        brand: e.target.value,
+                        mainCategory: "",
+                        subCategory: "",
+                      })
+                    }
+                    className="w-full rounded-2xl border px-3 py-2 text-sm"
                   >
                     {BRAND_OPTIONS.map((b) => (
                       <option key={b} value={b}>
@@ -993,33 +1137,33 @@ export default function AdminExpenses() {
                 </div>
               </div>
 
+              {/* Vendor */}
               <div>
-                <p className="text-xs font-semibold text-slate-600 mb-1">Vendor</p>
+                <p className="text-xs font-semibold mb-1">Vendor</p>
                 <input
                   value={editing.vendor}
                   onChange={(e) => setEditing({ ...editing, vendor: e.target.value })}
-                  placeholder="e.g. ADNOC, Amazon, Hotel…"
-                  className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                  className="w-full rounded-2xl border px-3 py-2 text-sm"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_140px] gap-3">
+              {/* Amount / Currency / Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">Amount</p>
+                  <p className="text-xs font-semibold mb-1">Amount</p>
                   <input
                     value={editing.amount}
                     onChange={(e) => setEditing({ ...editing, amount: e.target.value })}
-                    placeholder="e.g. 125.50"
-                    className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
-                    inputMode="decimal"
+                    className="w-full rounded-2xl border px-3 py-2 text-sm"
                   />
                 </div>
+
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">Currency</p>
+                  <p className="text-xs font-semibold mb-1">Currency</p>
                   <select
                     value={editing.currency}
                     onChange={(e) => setEditing({ ...editing, currency: e.target.value })}
-                    className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                    className="w-full rounded-2xl border px-3 py-2 text-sm"
                   >
                     {CURRENCY_OPTIONS.map((c) => (
                       <option key={c} value={c}>
@@ -1028,128 +1172,167 @@ export default function AdminExpenses() {
                     ))}
                   </select>
                 </div>
+
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1">VAT (optional)</p>
-                  <input
-                    value={editing.vat}
-                    onChange={(e) => setEditing({ ...editing, vat: e.target.value })}
-                    placeholder="e.g. 5.00"
-                    className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
-                    inputMode="decimal"
-                  />
+                  <p className="text-xs font-semibold mb-1">Status</p>
+                  <select
+                    value={editing.status}
+                    onChange={(e) =>
+                      setEditing({ ...editing, status: e.target.value as DbExpense["status"] })
+                    }
+                    className="w-full rounded-2xl border px-3 py-2 text-sm"
+                  >
+                    {EXPENSE_STATUS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              <div>
-                <p className="text-xs font-semibold text-slate-600 mb-1">Category (optional)</p>
-                <input
-                  value={editing.category}
-                  onChange={(e) => setEditing({ ...editing, category: e.target.value })}
-                  placeholder="e.g. Fuel, Ads, Office…"
-                  className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
-                />
+              {/* CATEGORY */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs font-semibold mb-1">Categorie *</p>
+                  <select
+                    value={editing.mainCategory}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        mainCategory: e.target.value,
+                        subCategory: "",
+                      })
+                    }
+                    className="w-full rounded-2xl border px-3 py-2 text-sm"
+                  >
+                    <option value="">Select category</option>
+                    {mainCategories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold mb-1">Subcategorie *</p>
+                  <select
+                    value={editing.subCategory}
+                    onChange={(e) =>
+                      setEditing({ ...editing, subCategory: e.target.value })
+                    }
+                    disabled={!editing.mainCategory}
+                    className="w-full rounded-2xl border px-3 py-2 text-sm disabled:opacity-50"
+                  >
+                    <option value="">Select subcategory</option>
+                    {subCategories.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
+              {/* AI Suggestion */}
+              {editing.aiSuggestion && (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm">
+                  <p className="font-semibold text-sky-700">
+                    AI suggestion ({editing.aiSuggestion.confidence}%)
+                  </p>
+                  <p className="mt-1">
+                    {editing.aiSuggestion.main} / {editing.aiSuggestion.sub}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditing({
+                        ...editing,
+                        mainCategory: editing.aiSuggestion!.main,
+                        subCategory: editing.aiSuggestion!.sub,
+                      })
+                    }
+                    className="mt-2 inline-flex rounded-xl bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white"
+                  >
+                    Apply
+                  </button>
+                </div>
+              )}
+
+              {/* NOTE */}
               <div>
-                <p className="text-xs font-semibold text-slate-600 mb-1">Note (optional)</p>
+                <p className="text-xs font-semibold mb-1">Note</p>
                 <textarea
                   value={editing.note}
                   onChange={(e) => setEditing({ ...editing, note: e.target.value })}
-                  placeholder="Optional note…"
-                  className="w-full min-h-[90px] rounded-2xl border border-slate-200 px-3 py-2 text-sm"
+                  className="w-full min-h-[90px] rounded-2xl border px-3 py-2 text-sm"
                 />
               </div>
             </div>
 
-            {/* Right receipt */}
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:p-6">
-              <p className="text-sm font-semibold text-slate-900">Receipt</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Upload a photo. We’ll parse it with AI in the next step.
-              </p>
+            {/* RIGHT – Receipt */}
+            <div className="rounded-3xl border bg-slate-50 p-4 sm:p-6">
+              <p className="text-sm font-semibold">Receipt</p>
 
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-white overflow-hidden">
-                <div className="aspect-[4/3] w-full bg-slate-50 flex items-center justify-center overflow-hidden">
-                  {editing.receiptPreview ? (
-                    <img
-                      src={editing.receiptPreview}
-                      alt="Receipt"
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 text-slate-400">
-                      <Upload className="h-6 w-6" />
-                      <span className="text-xs">No receipt</span>
-                    </div>
-                  )}
-                </div>
+              <div className="mt-3 aspect-[4/3] rounded-2xl border bg-white flex items-center justify-center overflow-hidden">
+                {editing.receiptPreview ? (
+                  <img
+                    src={editing.receiptPreview}
+                    className="w-full h-full object-cover"
+                    alt="Receipt"
+                  />
+                ) : (
+                  <Upload className="h-6 w-6 text-slate-400" />
+                )}
+              </div>
 
-                <div className="p-3 border-t border-slate-200">
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) onPickReceipt(f);
-                          e.currentTarget.value = "";
-                        }}
-                      />
-                      <Upload className="h-4 w-4" />
-                      Upload
-                    </label>
+              <div className="mt-3 flex gap-2">
+                <label className="flex-1 text-center rounded-xl border px-3 py-2 text-xs font-semibold cursor-pointer">
+                  Upload
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) onPickReceipt(f);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setEditing({
-                          ...editing,
-                          receiptFile: null,
-                          receiptPreview: "",
-                          receipt_url: "",
-                        })
-                      }
-                      className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      Clear
-                    </button>
-                  </div>
-
-                  {editing.receipt_url ? (
-                    <p className="mt-2 text-[11px] text-slate-500 break-all">
-                      Current: {editing.receipt_url}
-                    </p>
-                  ) : null}
-                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditing({
+                      ...editing,
+                      receiptPreview: "",
+                      receiptFile: null,
+                      receipt_url: "",
+                      aiSuggestion: null,
+                    })
+                  }
+                  className="flex-1 rounded-xl border px-3 py-2 text-xs font-semibold"
+                >
+                  Clear
+                </button>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
-                  type="button"
                   onClick={closeEditor}
-                  className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-2xl border px-4 py-2 text-sm"
                   disabled={saving}
                 >
                   Cancel
                 </button>
                 <button
-                  type="button"
                   onClick={onSave}
-                  disabled={saving}
-                  className={clsx(
-                    "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold border",
-                    saving
-                      ? "bg-slate-100 text-slate-400 border-slate-200"
-                      : "bg-slate-900 text-white border-slate-900 hover:opacity-95"
-                  )}
+                  disabled={!editing.mainCategory || !editing.subCategory || saving}
+                  className="rounded-2xl bg-slate-900 text-white px-4 py-2 text-sm disabled:opacity-50"
                 >
-                  <Save className="h-4 w-4" />
-                  {saving ? "Saving…" : "Save"}
+                  Save
                 </button>
               </div>
             </div>
