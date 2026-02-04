@@ -26,7 +26,7 @@ export async function fetchExpenses(params?: {
   brand?: string;
   status?: string;
   date_from?: string; // YYYY-MM-DD
-  date_to?: string;   // YYYY-MM-DD
+  date_to?: string; // YYYY-MM-DD
   limit?: number;
 }) {
   let q = supabase
@@ -60,4 +60,22 @@ export async function upsertExpenseDb(payload: Partial<DbExpense> & { id?: strin
 export async function deleteExpenseDb(id: string) {
   const { error } = await supabase.from("expenses").delete().eq("id", id);
   if (error) throw error;
+}
+
+/* ================================
+   BULK INSERT (XLSX / CSV import)
+================================ */
+export async function insertExpensesDb(
+  payloads: Array<Partial<DbExpense>>
+): Promise<DbExpense[]> {
+  const clean = (payloads || []).filter(Boolean);
+  if (!clean.length) return [];
+
+  const { data, error } = await supabase
+    .from("expenses")
+    .insert(clean as any)
+    .select("*");
+
+  if (error) throw error;
+  return (data || []) as DbExpense[];
 }
