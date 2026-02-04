@@ -6,7 +6,7 @@ import AdminGate from "./pages/AdminGate";
 
 import Admin from "./pages/Admin";
 import AdminBrands from "./pages/AdminBrands";
-import AdminExpenses from "./pages/AdminExpenses";
+import AdminExpenses from "./pages/admin/AdminExpenses";
 import AdminLogin from "./pages/AdminLogin";
 
 export default function App() {
