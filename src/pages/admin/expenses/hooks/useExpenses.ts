@@ -4,13 +4,13 @@ import {
   fetchExpenses,
   upsertExpenseDb,
   deleteExpenseDb,
-  insertExpensesDb, // ✅ add this in lib/expensesApi (bulk insert)
+  insertExpensesDb,
   type DbExpense,
 } from "../../../../lib/expensesApi";
 
 export function useExpenses() {
   const [rows, setRows] = useState<DbExpense[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -62,16 +62,18 @@ export function useExpenses() {
     [removeLocal]
   );
 
-  // ✅ BULK INSERT (for XLSX import)
-  const insertManyDb = useCallback(
+  // ✅ BULK INSERT (XLSX import)
+  const insertMany = useCallback(
     async (payloads: Array<Partial<DbExpense>>) => {
       if (!payloads.length) return [];
-      const savedRows = await insertExpensesDb(payloads); // should return DbExpense[]
-      // safest: reload, so UI matches DB ordering / computed fields
-      await reload();
-      return savedRows;
+      const saved = await insertExpensesDb(payloads);
+
+      // optimistic local merge: prepend inserted (then you can sort in UI)
+      setRows((prev) => [...saved, ...prev]);
+
+      return saved;
     },
-    [reload]
+    []
   );
 
   return {
@@ -81,7 +83,7 @@ export function useExpenses() {
     reload,
     upsertDb,
     deleteDb,
-    insertManyDb, // ✅ export
+    insertMany, // ✅
     upsertLocal,
     removeLocal,
   };
