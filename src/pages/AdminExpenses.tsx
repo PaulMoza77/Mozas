@@ -1,7 +1,16 @@
 // src/pages/admin/AdminExpenses.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Plus, Upload, X, Trash2, Save, FileText, Search } from "lucide-react";
+import {
+  Plus,
+  Upload,
+  X,
+  Trash2,
+  Save,
+  FileText,
+  Search,
+  ChevronDown,
+} from "lucide-react";
 import { supabase } from "../lib/supabase";
 import {
   fetchExpenses,
@@ -26,7 +35,7 @@ function parseISOToDate(iso?: string | null) {
   if (!iso) return null;
   const [y, m, d] = String(iso).split("-").map((n) => Number(n));
   if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d, 12, 0, 0); // local noon avoids TZ edge
+  return new Date(y, m - 1, d, 12, 0, 0);
 }
 
 function money(n: any) {
@@ -55,6 +64,18 @@ function sumByCurrency(rows: DbExpense[]) {
   return out;
 }
 
+function normalizeCategory(s: any) {
+  const v = String(s ?? "").trim();
+  return v;
+}
+
+function getBrandDisplay(brand: string) {
+  return BRAND_DISPLAY[brand] || brand || "—";
+}
+
+/** =========================
+ * Modal
+ * ========================= */
 function ModalShell({
   title,
   subtitle,
@@ -113,16 +134,17 @@ type Draft = {
   status: DbExpense["status"];
 };
 
-const BRAND_OPTIONS = ["Mozas", "Volocar", "GetSureDrive", "TDG", "Brandly"];
+const BRAND_OPTIONS = ["Mozas", "Volocar", "GetSureDrive", "TDG", "Brandly", "Personal"];
 const BRAND_DISPLAY: Record<string, string> = {
   Mozas: "TheMozas",
   Volocar: "Volocar",
   TDG: "TDG",
   Brandly: "BRANDLY",
   GetSureDrive: "GETSUREDRIVE",
+  Personal: "Personal",
 };
 
-const DASH_BRANDS = ["Mozas", "Volocar", "TDG", "Brandly", "GetSureDrive"] as const;
+const DASH_BRANDS = ["Mozas", "Volocar", "TDG", "Brandly", "GetSureDrive", "Personal"] as const;
 
 const CURRENCY_OPTIONS = ["AED", "EUR", "USD", "RON"];
 const STATUS_OPTIONS: Array<DbExpense["status"] | "all"> = [
@@ -146,6 +168,7 @@ const PERIODS: Array<{ key: PeriodKey; label: string }> = [
 
 function periodStart(key: PeriodKey) {
   if (key === "all") return null;
+
   const now = new Date();
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
@@ -160,6 +183,9 @@ function periodStart(key: PeriodKey) {
   return start;
 }
 
+/** =========================
+ * Storage
+ * ========================= */
 async function uploadReceipt(file: File) {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `${crypto.randomUUID()}.${ext}`;
@@ -187,6 +213,9 @@ async function deleteReceipt(publicUrl: string | null) {
   await supabase.storage.from("expenses").remove([path]);
 }
 
+/** =========================
+ * Top Nav
+ * ========================= */
 function TopAdminNav() {
   const linkBase =
     "inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold border";
@@ -228,16 +257,78 @@ function TopAdminNav() {
   );
 }
 
+/** =========================
+ * Category Card + dropdown
+ * ========================= */
+type CatCardMetric = "sum" | "count";
+
+function CategoryCard({
+  title,
+  valueText,
+  isActive,
+  onClick,
+  metric,
+  onMetricChange,
+}: {
+  title: string;
+  valueText: string;
+  isActive: boolean;
+  onClick: () => void;
+  metric: CatCardMetric;
+  onMetricChange: (m: CatCardMetric) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx(
+        "text-left rounded-3xl border p-4 sm:p-5 bg-white hover:bg-slate-50 transition",
+        isActive ? "border-slate-900 ring-1 ring-slate-900/10" : "border-slate-200"
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-slate-500 truncate">{title}</p>
+          <p className="mt-2 text-base sm:text-lg font-semibold text-slate-900">{valueText}</p>
+        </div>
+
+        <div className="shrink-0">
+          <div className="relative">
+            <select
+              value={metric}
+              onChange={(e) => onMetricChange(e.target.value as CatCardMetric)}
+              onClick={(e) => e.stopPropagation()}
+              className="appearance-none rounded-2xl border border-slate-200 bg-white pl-3 pr-8 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              title="Ce afișează cardul"
+            >
+              <option value="sum">Sumă</option>
+              <option value="count">Nr. tranz.</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export default function AdminExpenses() {
   const [rows, setRows] = useState<DbExpense[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // period
   const [period, setPeriod] = useState<PeriodKey>("month");
 
+  // search + filters
   const [q, setQ] = useState("");
   const [brandFilter, setBrandFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_OPTIONS)[number]>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
+  // dashboard category cards metric dropdown
+  const [catMetric, setCatMetric] = useState<CatCardMetric>("sum");
+
+  // editor
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -258,7 +349,10 @@ export default function AdminExpenses() {
     load();
   }, []);
 
-  const filtered = useMemo(() => {
+  /** =========================
+   * Filtering pipeline
+   * ========================= */
+  const baseFiltered = useMemo(() => {
     const qq = q.trim().toLowerCase();
     const start = periodStart(period);
 
@@ -291,13 +385,37 @@ export default function AdminExpenses() {
     });
   }, [rows, q, brandFilter, statusFilter, period]);
 
+  const filtered = useMemo(() => {
+    if (categoryFilter === "all") return baseFiltered;
+    return baseFiltered.filter((r) => normalizeCategory(r.category) === categoryFilter);
+  }, [baseFiltered, categoryFilter]);
+
+  /** =========================
+   * Category options (pills)
+   * ========================= */
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of baseFiltered) {
+      const c = normalizeCategory(r.category);
+      if (c) set.add(c);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [baseFiltered]);
+
+  /** =========================
+   * Dashboard aggregates (respect period + search + status)
+   * - brand cards should filter by brand only (categoryFilter should NOT change the brand totals?)
+   *   You asked: category cards filtered by selected brand (Total/Volocar/TDG...) so:
+   *   - Brand dashboard uses baseFiltered (not category-filtered) so it's stable.
+   *   - Category cards use brandFilter + other filters, but their own click applies categoryFilter.
+   * ========================= */
   const dashboard = useMemo(() => {
-    const total = sumByCurrency(filtered);
+    const total = sumByCurrency(baseFiltered);
 
     const byBrand: Record<string, Record<string, number>> = {};
     for (const b of DASH_BRANDS) byBrand[b] = {};
 
-    for (const r of filtered) {
+    for (const r of baseFiltered) {
       const b = (r.brand || "") as (typeof DASH_BRANDS)[number];
       if (!byBrand[b]) continue;
       const cur = (r.currency || "AED").toUpperCase();
@@ -307,8 +425,62 @@ export default function AdminExpenses() {
     }
 
     return { total, byBrand };
-  }, [filtered]);
+  }, [baseFiltered]);
 
+  /** =========================
+   * Top 6 categories cards
+   * Filtered by selected brandFilter (all/Volocar/etc) + period/search/status
+   * ========================= */
+  const topCategories = useMemo(() => {
+    // pool respects period/search/status + brandFilter + statusFilter via baseFiltered already
+    const pool = baseFiltered;
+
+    // aggregate either sum or count
+    const map = new Map<string, { sumByCur: Record<string, number>; count: number }>();
+
+    for (const r of pool) {
+      const c = normalizeCategory(r.category);
+      if (!c) continue;
+
+      const cur = (r.currency || "AED").toUpperCase();
+      const amt = Number(r.amount);
+      const entry = map.get(c) || { sumByCur: {}, count: 0 };
+
+      if (Number.isFinite(amt)) entry.sumByCur[cur] = (entry.sumByCur[cur] || 0) + amt;
+      entry.count += 1;
+
+      map.set(c, entry);
+    }
+
+    const arr = Array.from(map.entries()).map(([category, v]) => {
+      const totalNumeric = Object.values(v.sumByCur).reduce((acc, n) => acc + (Number.isFinite(n) ? n : 0), 0);
+      return { category, ...v, totalNumeric };
+    });
+
+    // sort by sum (best default for "top")
+    arr.sort((a, b) => b.totalNumeric - a.totalNumeric);
+
+    return arr.slice(0, 6);
+  }, [baseFiltered]);
+
+  /** =========================
+   * Brand card click = filter
+   * ========================= */
+  const toggleBrand = (b: string | "all") => {
+    setCategoryFilter("all"); // reset category when switching brand (clean UX)
+    setBrandFilter((prev) => (prev === b ? "all" : b));
+  };
+
+  /** =========================
+   * Category card click = filter
+   * ========================= */
+  const toggleCategory = (c: string) => {
+    setCategoryFilter((prev) => (prev === c ? "all" : c));
+  };
+
+  /** =========================
+   * Editor actions
+   * ========================= */
   const openCreate = () => {
     setEditing({
       expense_date: todayISO(),
@@ -366,7 +538,8 @@ export default function AdminExpenses() {
 
     const amountNum =
       editing.amount.trim() === "" ? null : Number(editing.amount.replace(",", "."));
-    const vatNum = editing.vat.trim() === "" ? null : Number(editing.vat.replace(",", "."));
+    const vatNum =
+      editing.vat.trim() === "" ? null : Number(editing.vat.replace(",", "."));
 
     if (amountNum != null && !Number.isFinite(amountNum)) return alert("Amount invalid.");
     if (vatNum != null && !Number.isFinite(vatNum)) return alert("VAT invalid.");
@@ -377,9 +550,11 @@ export default function AdminExpenses() {
 
       if (editing.receiptFile) {
         const newUrl = await uploadReceipt(editing.receiptFile);
+
         if (editing.receipt_url && editing.receipt_url !== newUrl) {
           await deleteReceipt(editing.receipt_url);
         }
+
         receipt_url = newUrl;
       }
 
@@ -433,6 +608,14 @@ export default function AdminExpenses() {
     }
   };
 
+  /** =========================
+   * UI helpers
+   * ========================= */
+  const selectedBrandLabel =
+    brandFilter === "all" ? "All brands" : (BRAND_DISPLAY[brandFilter] || brandFilter);
+
+  const selectedCategoryLabel = categoryFilter === "all" ? "All categories" : categoryFilter;
+
   return (
     <div className="space-y-5">
       {/* Top nav */}
@@ -447,7 +630,7 @@ export default function AdminExpenses() {
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-900">Cheltuieli</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Total + breakdown pe brand (filtrat pe perioadă).
+              Total + breakdown pe brand (filtrat pe perioadă). Cardurile sunt filtre.
             </p>
           </div>
 
@@ -471,56 +654,168 @@ export default function AdminExpenses() {
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-6">
+        {/* Brand cards (clickable filters) */}
+        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-7">
           {/* Total */}
-          <div className="lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-4 sm:p-5">
+          <button
+            type="button"
+            onClick={() => toggleBrand("all")}
+            className={clsx(
+              "text-left lg:col-span-2 rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
+              brandFilter === "all" ? "border-slate-900 ring-1 ring-slate-900/10" : "border-slate-200"
+            )}
+            title="Click: show all brands"
+          >
             <p className="text-xs font-semibold text-slate-500">Total cheltuieli</p>
             <p className="mt-2 text-lg sm:text-xl font-semibold text-slate-900">
               {formatAgg(dashboard.total)}
             </p>
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
-                {filtered.length} items
+                {baseFiltered.length} items
               </span>
-              {brandFilter !== "all" ? (
-                <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
-                  Brand: {BRAND_DISPLAY[brandFilter] || brandFilter}
-                </span>
-              ) : null}
+
               {statusFilter !== "all" ? (
                 <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
                   Status: {statusFilter}
                 </span>
               ) : null}
+
+              {q.trim() ? (
+                <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
+                  Search: “{q.trim()}”
+                </span>
+              ) : null}
+            </div>
+          </button>
+
+          {/* Each brand */}
+          {DASH_BRANDS.map((b) => {
+            const active = brandFilter === b;
+            const label = BRAND_DISPLAY[b] || b;
+            const val = formatAgg(dashboard.byBrand[b]);
+
+            return (
+              <button
+                key={b}
+                type="button"
+                onClick={() => toggleBrand(b)}
+                className={clsx(
+                  "text-left rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
+                  active ? "border-slate-900 ring-1 ring-slate-900/10" : "border-slate-200"
+                )}
+                title={`Click: filter ${label}`}
+              >
+                <p className="text-xs font-semibold text-slate-500">Expenses: {label}</p>
+                <p className="mt-2 text-base sm:text-lg font-semibold text-slate-900">{val}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Category section */}
+        <div className="mt-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                Categories
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                Filtrate după: <span className="font-semibold">{selectedBrandLabel}</span>
+                {" · "}
+                <span className="font-semibold">{selectedCategoryLabel}</span>
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500">Cards show:</span>
+              <div className="relative">
+                <select
+                  value={catMetric}
+                  onChange={(e) => setCatMetric(e.target.value as any)}
+                  className="appearance-none rounded-2xl border border-slate-200 bg-white pl-3 pr-8 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  <option value="sum">Sumă</option>
+                  <option value="count">Nr. tranz.</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              </div>
             </div>
           </div>
 
-          {/* Brand cards */}
-          {DASH_BRANDS.map((b) => (
-            <div
-              key={b}
-              className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5"
+          {/* Category pills */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("all")}
+              className={clsx(
+                "rounded-2xl px-3 py-2 text-sm font-semibold border",
+                categoryFilter === "all"
+                  ? "bg-slate-900 text-white border-slate-900"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+              )}
             >
-              <p className="text-xs font-semibold text-slate-500">
-                Expenses: {BRAND_DISPLAY[b]}
-              </p>
-              <p className="mt-2 text-base font-semibold text-slate-900">
-                {formatAgg(dashboard.byBrand[b])}
-              </p>
-            </div>
-          ))}
+              All categories
+            </button>
+
+            {categoryOptions.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => toggleCategory(c)}
+                className={clsx(
+                  "rounded-2xl px-3 py-2 text-sm font-semibold border",
+                  categoryFilter === c
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                )}
+                title="Click: filter category"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          {/* Top 6 category cards (clickable filters) */}
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {topCategories.length === 0 ? (
+              <div className="sm:col-span-2 lg:col-span-3 rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
+                No categories in this selection.
+              </div>
+            ) : (
+              topCategories.map((c) => {
+                const active = categoryFilter === c.category;
+                const valueText =
+                  catMetric === "count"
+                    ? `${c.count} tranzacții`
+                    : formatAgg(c.sumByCur);
+
+                return (
+                  <CategoryCard
+                    key={c.category}
+                    title={c.category}
+                    valueText={valueText}
+                    isActive={active}
+                    onClick={() => toggleCategory(c.category)}
+                    metric={catMetric}
+                    onMetricChange={setCatMetric}
+                  />
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Header + actions */}
+      {/* Transactions header + actions (renamed, no redundancy) */}
       <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Expenses
+              Transactions
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-900">
-              Track costs + scan receipts
+              All expenses
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               Add manual expenses or upload a receipt. (AI parsing next step.)
@@ -538,7 +833,7 @@ export default function AdminExpenses() {
         </div>
 
         {/* Filters */}
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_220px_220px]">
+        <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-[1fr_220px_220px]">
           <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
             <Search className="h-4 w-4 text-slate-400" />
             <input
@@ -561,13 +856,16 @@ export default function AdminExpenses() {
 
           <select
             value={brandFilter}
-            onChange={(e) => setBrandFilter(e.target.value)}
+            onChange={(e) => {
+              setCategoryFilter("all");
+              setBrandFilter(e.target.value);
+            }}
             className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
           >
             <option value="all">All brands</option>
             {BRAND_OPTIONS.map((b) => (
               <option key={b} value={b}>
-                {BRAND_DISPLAY[b] || b}
+                {getBrandDisplay(b)}
               </option>
             ))}
           </select>
@@ -621,11 +919,9 @@ export default function AdminExpenses() {
                       ) : null}
                     </td>
 
-                    <td className="px-4 py-3 text-slate-700">
-                      {BRAND_DISPLAY[r.brand || ""] || r.brand || "—"}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{getBrandDisplay(r.brand || "")}</td>
 
-                    <td className="px-4 py-3 text-slate-700">{r.category || "—"}</td>
+                    <td className="px-4 py-3 text-slate-700">{normalizeCategory(r.category) || "—"}</td>
 
                     <td className="px-4 py-3 font-semibold text-slate-900">
                       {(r.currency || "AED").toUpperCase()} {money(r.amount)}
@@ -718,7 +1014,7 @@ export default function AdminExpenses() {
                   >
                     {BRAND_OPTIONS.map((b) => (
                       <option key={b} value={b}>
-                        {BRAND_DISPLAY[b] || b}
+                        {getBrandDisplay(b)}
                       </option>
                     ))}
                   </select>
