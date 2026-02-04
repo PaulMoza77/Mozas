@@ -65,12 +65,7 @@ function sumByCurrency(rows: DbExpense[]) {
 }
 
 function normalizeCategory(s: any) {
-  const v = String(s ?? "").trim();
-  return v;
-}
-
-function getBrandDisplay(brand: string) {
-  return BRAND_DISPLAY[brand] || brand || "—";
+  return String(s ?? "").trim();
 }
 
 /** =========================
@@ -143,7 +138,6 @@ const BRAND_DISPLAY: Record<string, string> = {
   GetSureDrive: "GETSUREDRIVE",
   Personal: "Personal",
 };
-
 const DASH_BRANDS = ["Mozas", "Volocar", "TDG", "Brandly", "GetSureDrive", "Personal"] as const;
 
 const CURRENCY_OPTIONS = ["AED", "EUR", "USD", "RON"];
@@ -171,8 +165,8 @@ function periodStart(key: PeriodKey) {
 
   const now = new Date();
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
   const start = new Date(end);
+
   if (key === "day") start.setDate(end.getDate());
   if (key === "week") start.setDate(end.getDate() - 6);
   if (key === "month") start.setDate(end.getDate() - 29);
@@ -181,6 +175,10 @@ function periodStart(key: PeriodKey) {
 
   start.setHours(0, 0, 0, 0);
   return start;
+}
+
+function getBrandDisplay(brand: string) {
+  return BRAND_DISPLAY[brand] || brand || "—";
 }
 
 /** =========================
@@ -214,54 +212,9 @@ async function deleteReceipt(publicUrl: string | null) {
 }
 
 /** =========================
- * Top Nav
- * ========================= */
-function TopAdminNav() {
-  const linkBase =
-    "inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold border";
-  const active = "bg-slate-900 text-white border-slate-900";
-  const inactive = "bg-white text-slate-700 border-slate-200 hover:bg-slate-50";
-
-  return (
-    <div className="rounded-3xl border border-slate-200 bg-white/80 p-3 sm:p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-            Admin
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-900">Expenses</h2>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <NavLink
-            to="/admin/overview"
-            className={({ isActive }) => clsx(linkBase, isActive ? active : inactive)}
-          >
-            Overview
-          </NavLink>
-          <NavLink
-            to="/admin/brands"
-            className={({ isActive }) => clsx(linkBase, isActive ? active : inactive)}
-          >
-            Brands
-          </NavLink>
-          <NavLink
-            to="/admin/expenses"
-            className={({ isActive }) => clsx(linkBase, isActive ? active : inactive)}
-          >
-            Expenses
-          </NavLink>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** =========================
- * Category Card + dropdown
+ * Category Card
  * ========================= */
 type CatCardMetric = "sum" | "count";
-
 function CategoryCard({
   title,
   valueText,
@@ -285,6 +238,7 @@ function CategoryCard({
         "text-left rounded-3xl border p-4 sm:p-5 bg-white hover:bg-slate-50 transition",
         isActive ? "border-slate-900 ring-1 ring-slate-900/10" : "border-slate-200"
       )}
+      title="Click: filter category"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -292,6 +246,7 @@ function CategoryCard({
           <p className="mt-2 text-base sm:text-lg font-semibold text-slate-900">{valueText}</p>
         </div>
 
+        {/* dropdown inside each card (global control, per your request “in the card”) */}
         <div className="shrink-0">
           <div className="relative">
             <select
@@ -299,7 +254,7 @@ function CategoryCard({
               onChange={(e) => onMetricChange(e.target.value as CatCardMetric)}
               onClick={(e) => e.stopPropagation()}
               className="appearance-none rounded-2xl border border-slate-200 bg-white pl-3 pr-8 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              title="Ce afișează cardul"
+              title="Ce afișează cardurile"
             >
               <option value="sum">Sumă</option>
               <option value="count">Nr. tranz.</option>
@@ -312,20 +267,94 @@ function CategoryCard({
   );
 }
 
+/** =========================
+ * Top Bar (period + nav on same level)
+ * ========================= */
+function TopAdminBar({
+  period,
+  setPeriod,
+}: {
+  period: PeriodKey;
+  setPeriod: (p: PeriodKey) => void;
+}) {
+  const linkBase =
+    "inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold border";
+  const active = "bg-slate-900 text-white border-slate-900";
+  const inactive = "bg-white text-slate-700 border-slate-200 hover:bg-slate-50";
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white/80 p-3 sm:p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        {/* Left: title + period */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:justify-start lg:gap-4">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+              Admin
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-900">Expenses</h2>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {PERIODS.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setPeriod(p.key)}
+                className={clsx(
+                  "rounded-2xl px-3 py-2 text-sm font-semibold border",
+                  period === p.key ? active : inactive
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: nav */}
+        <div className="flex flex-wrap gap-2">
+          <NavLink
+            to="/admin"
+            className={({ isActive }) => clsx(linkBase, isActive ? active : inactive)}
+            end
+          >
+            Overview
+          </NavLink>
+          <NavLink
+            to="/admin/brands"
+            className={({ isActive }) => clsx(linkBase, isActive ? active : inactive)}
+          >
+            Brands
+          </NavLink>
+          <NavLink
+            to="/admin/expenses"
+            className={({ isActive }) => clsx(linkBase, isActive ? active : inactive)}
+          >
+            Expenses
+          </NavLink>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminExpenses() {
   const [rows, setRows] = useState<DbExpense[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // period
+  // period is now top-level in bar
   const [period, setPeriod] = useState<PeriodKey>("month");
 
   // search + filters
   const [q, setQ] = useState("");
-  const [brandFilter, setBrandFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_OPTIONS)[number]>("all");
+
+  // IMPORTANT: brandFilter & categoryFilter should NOT hide other brand totals in dashboard.
+  // They only filter Categories cards + Transactions table.
+  const [brandFilter, setBrandFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  // dashboard category cards metric dropdown
+  // category card metric dropdown (inside cards)
   const [catMetric, setCatMetric] = useState<CatCardMetric>("sum");
 
   // editor
@@ -350,25 +379,22 @@ export default function AdminExpenses() {
   }, []);
 
   /** =========================
-   * Filtering pipeline
+   * Base filter (period + status + search)
+   * This feeds dashboard totals for ALL brands (always visible).
    * ========================= */
-  const baseFiltered = useMemo(() => {
+  const base = useMemo(() => {
     const qq = q.trim().toLowerCase();
     const start = periodStart(period);
 
     return rows.filter((r) => {
-      // period
       if (start) {
         const d = parseISOToDate(r.expense_date);
         if (!d) return false;
         if (d < start) return false;
       }
 
-      // filters
-      if (brandFilter !== "all" && (r.brand || "") !== brandFilter) return false;
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
 
-      // search
       if (!qq) return true;
       const hay = [
         r.vendor,
@@ -383,39 +409,35 @@ export default function AdminExpenses() {
         .join(" ");
       return hay.includes(qq);
     });
-  }, [rows, q, brandFilter, statusFilter, period]);
-
-  const filtered = useMemo(() => {
-    if (categoryFilter === "all") return baseFiltered;
-    return baseFiltered.filter((r) => normalizeCategory(r.category) === categoryFilter);
-  }, [baseFiltered, categoryFilter]);
+  }, [rows, q, statusFilter, period]);
 
   /** =========================
-   * Category options (pills)
+   * Scope = base + optional brandFilter
+   * (Used for categories + transactions table)
    * ========================= */
-  const categoryOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const r of baseFiltered) {
-      const c = normalizeCategory(r.category);
-      if (c) set.add(c);
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [baseFiltered]);
+  const scope = useMemo(() => {
+    if (brandFilter === "all") return base;
+    return base.filter((r) => (r.brand || "") === brandFilter);
+  }, [base, brandFilter]);
 
   /** =========================
-   * Dashboard aggregates (respect period + search + status)
-   * - brand cards should filter by brand only (categoryFilter should NOT change the brand totals?)
-   *   You asked: category cards filtered by selected brand (Total/Volocar/TDG...) so:
-   *   - Brand dashboard uses baseFiltered (not category-filtered) so it's stable.
-   *   - Category cards use brandFilter + other filters, but their own click applies categoryFilter.
+   * Final = scope + optional categoryFilter
+   * (Transactions table)
+   * ========================= */
+  const filtered = useMemo(() => {
+    if (categoryFilter === "all") return scope;
+    return scope.filter((r) => normalizeCategory(r.category) === categoryFilter);
+  }, [scope, categoryFilter]);
+
+  /** =========================
+   * Dashboard aggregates (ALWAYS from base)
+   * so brand selection doesn't “make others disappear”
    * ========================= */
   const dashboard = useMemo(() => {
-    const total = sumByCurrency(baseFiltered);
-
+    const total = sumByCurrency(base);
     const byBrand: Record<string, Record<string, number>> = {};
     for (const b of DASH_BRANDS) byBrand[b] = {};
-
-    for (const r of baseFiltered) {
+    for (const r of base) {
       const b = (r.brand || "") as (typeof DASH_BRANDS)[number];
       if (!byBrand[b]) continue;
       const cur = (r.currency || "AED").toUpperCase();
@@ -423,57 +445,63 @@ export default function AdminExpenses() {
       if (!Number.isFinite(amt)) continue;
       byBrand[b][cur] = (byBrand[b][cur] || 0) + amt;
     }
-
     return { total, byBrand };
-  }, [baseFiltered]);
+  }, [base]);
 
   /** =========================
-   * Top 6 categories cards
-   * Filtered by selected brandFilter (all/Volocar/etc) + period/search/status
+   * Category pills options (from scope, so they react to selected brand)
+   * ========================= */
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of scope) {
+      const c = normalizeCategory(r.category);
+      if (c) set.add(c);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [scope]);
+
+  /** =========================
+   * Top 6 categories cards (from scope, so they react to selected brand)
    * ========================= */
   const topCategories = useMemo(() => {
-    // pool respects period/search/status + brandFilter + statusFilter via baseFiltered already
-    const pool = baseFiltered;
+    const map = new Map<string, { sumByCur: Record<string, number>; count: number; totalNumeric: number }>();
 
-    // aggregate either sum or count
-    const map = new Map<string, { sumByCur: Record<string, number>; count: number }>();
-
-    for (const r of pool) {
+    for (const r of scope) {
       const c = normalizeCategory(r.category);
       if (!c) continue;
 
       const cur = (r.currency || "AED").toUpperCase();
       const amt = Number(r.amount);
-      const entry = map.get(c) || { sumByCur: {}, count: 0 };
 
-      if (Number.isFinite(amt)) entry.sumByCur[cur] = (entry.sumByCur[cur] || 0) + amt;
+      const entry = map.get(c) || { sumByCur: {}, count: 0, totalNumeric: 0 };
+
+      if (Number.isFinite(amt)) {
+        entry.sumByCur[cur] = (entry.sumByCur[cur] || 0) + amt;
+        entry.totalNumeric += amt;
+      }
       entry.count += 1;
 
       map.set(c, entry);
     }
 
-    const arr = Array.from(map.entries()).map(([category, v]) => {
-      const totalNumeric = Object.values(v.sumByCur).reduce((acc, n) => acc + (Number.isFinite(n) ? n : 0), 0);
-      return { category, ...v, totalNumeric };
-    });
+    const arr = Array.from(map.entries()).map(([category, v]) => ({
+      category,
+      ...v,
+    }));
 
-    // sort by sum (best default for "top")
+    // always sort by totalNumeric (top spend), even if you display count
     arr.sort((a, b) => b.totalNumeric - a.totalNumeric);
-
     return arr.slice(0, 6);
-  }, [baseFiltered]);
+  }, [scope]);
 
   /** =========================
-   * Brand card click = filter
+   * Brand card click = filter ONLY table+categories (dashboard stays full)
    * ========================= */
   const toggleBrand = (b: string | "all") => {
-    setCategoryFilter("all"); // reset category when switching brand (clean UX)
+    setCategoryFilter("all");
     setBrandFilter((prev) => (prev === b ? "all" : b));
   };
 
-  /** =========================
-   * Category card click = filter
-   * ========================= */
   const toggleCategory = (c: string) => {
     setCategoryFilter((prev) => (prev === c ? "all" : c));
   };
@@ -550,11 +578,9 @@ export default function AdminExpenses() {
 
       if (editing.receiptFile) {
         const newUrl = await uploadReceipt(editing.receiptFile);
-
         if (editing.receipt_url && editing.receipt_url !== newUrl) {
           await deleteReceipt(editing.receipt_url);
         }
-
         receipt_url = newUrl;
       }
 
@@ -608,55 +634,20 @@ export default function AdminExpenses() {
     }
   };
 
-  /** =========================
-   * UI helpers
-   * ========================= */
   const selectedBrandLabel =
     brandFilter === "all" ? "All brands" : (BRAND_DISPLAY[brandFilter] || brandFilter);
-
   const selectedCategoryLabel = categoryFilter === "all" ? "All categories" : categoryFilter;
 
   return (
     <div className="space-y-5">
-      {/* Top nav */}
-      <TopAdminNav />
+      {/* Top bar: period on left, nav on right */}
+      <TopAdminBar period={period} setPeriod={setPeriod} />
 
-      {/* Dashboard */}
+      {/* DASHBOARD (no extra big title — avoid redundancy) */}
       <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Dashboard
-            </p>
-            <h3 className="mt-1 text-xl font-semibold text-slate-900">Cheltuieli</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Total + breakdown pe brand (filtrat pe perioadă). Cardurile sunt filtre.
-            </p>
-          </div>
-
-          {/* Period filter */}
-          <div className="flex flex-wrap gap-2">
-            {PERIODS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => setPeriod(p.key)}
-                className={clsx(
-                  "rounded-2xl px-3 py-2 text-sm font-semibold border",
-                  period === p.key
-                    ? "bg-slate-900 text-white border-slate-900"
-                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Brand cards (clickable filters) */}
-        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-7">
-          {/* Total */}
+        {/* Brand cards */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
+          {/* Total card */}
           <button
             type="button"
             onClick={() => toggleBrand("all")}
@@ -664,7 +655,7 @@ export default function AdminExpenses() {
               "text-left lg:col-span-2 rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
               brandFilter === "all" ? "border-slate-900 ring-1 ring-slate-900/10" : "border-slate-200"
             )}
-            title="Click: show all brands"
+            title="Click: show all brands (for table + categories)"
           >
             <p className="text-xs font-semibold text-slate-500">Total cheltuieli</p>
             <p className="mt-2 text-lg sm:text-xl font-semibold text-slate-900">
@@ -672,15 +663,13 @@ export default function AdminExpenses() {
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
-                {baseFiltered.length} items
+                {base.length} items
               </span>
-
               {statusFilter !== "all" ? (
                 <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
                   Status: {statusFilter}
                 </span>
               ) : null}
-
               {q.trim() ? (
                 <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
                   Search: “{q.trim()}”
@@ -689,7 +678,6 @@ export default function AdminExpenses() {
             </div>
           </button>
 
-          {/* Each brand */}
           {DASH_BRANDS.map((b) => {
             const active = brandFilter === b;
             const label = BRAND_DISPLAY[b] || b;
@@ -704,7 +692,7 @@ export default function AdminExpenses() {
                   "text-left rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
                   active ? "border-slate-900 ring-1 ring-slate-900/10" : "border-slate-200"
                 )}
-                title={`Click: filter ${label}`}
+                title={`Click: filter table + categories → ${label}`}
               >
                 <p className="text-xs font-semibold text-slate-500">Expenses: {label}</p>
                 <p className="mt-2 text-base sm:text-lg font-semibold text-slate-900">{val}</p>
@@ -713,9 +701,9 @@ export default function AdminExpenses() {
           })}
         </div>
 
-        {/* Category section */}
+        {/* Categories */}
         <div className="mt-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
                 Categories
@@ -726,25 +714,10 @@ export default function AdminExpenses() {
                 <span className="font-semibold">{selectedCategoryLabel}</span>
               </p>
             </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500">Cards show:</span>
-              <div className="relative">
-                <select
-                  value={catMetric}
-                  onChange={(e) => setCatMetric(e.target.value as any)}
-                  className="appearance-none rounded-2xl border border-slate-200 bg-white pl-3 pr-8 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  <option value="sum">Sumă</option>
-                  <option value="count">Nr. tranz.</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              </div>
-            </div>
           </div>
 
           {/* Category pills */}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setCategoryFilter("all")}
@@ -769,14 +742,13 @@ export default function AdminExpenses() {
                     ? "bg-slate-900 text-white border-slate-900"
                     : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                 )}
-                title="Click: filter category"
               >
                 {c}
               </button>
             ))}
           </div>
 
-          {/* Top 6 category cards (clickable filters) */}
+          {/* Top 6 category cards */}
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {topCategories.length === 0 ? (
               <div className="sm:col-span-2 lg:col-span-3 rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
@@ -807,16 +779,14 @@ export default function AdminExpenses() {
         </div>
       </div>
 
-      {/* Transactions header + actions (renamed, no redundancy) */}
+      {/* TRANSACTIONS */}
       <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
               Transactions
             </p>
-            <h3 className="mt-1 text-xl font-semibold text-slate-900">
-              All expenses
-            </h3>
+            <h3 className="mt-1 text-xl font-semibold text-slate-900">All expenses</h3>
             <p className="mt-1 text-sm text-slate-500">
               Add manual expenses or upload a receipt. (AI parsing next step.)
             </p>
@@ -832,7 +802,7 @@ export default function AdminExpenses() {
           </button>
         </div>
 
-        {/* Filters */}
+        {/* Filters row (mobile friendly) */}
         <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-[1fr_220px_220px]">
           <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
             <Search className="h-4 w-4 text-slate-400" />
@@ -861,6 +831,7 @@ export default function AdminExpenses() {
               setBrandFilter(e.target.value);
             }}
             className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            title="Brand filter"
           >
             <option value="all">All brands</option>
             {BRAND_OPTIONS.map((b) => (
@@ -874,6 +845,7 @@ export default function AdminExpenses() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
             className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            title="Status filter"
           >
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
@@ -884,7 +856,7 @@ export default function AdminExpenses() {
         </div>
       </div>
 
-      {/* List */}
+      {/* LIST */}
       <div className="rounded-3xl border border-slate-200 bg-white/80 overflow-hidden">
         {loading ? (
           <div className="p-6 text-sm text-slate-500">Loading expenses…</div>
@@ -984,7 +956,7 @@ export default function AdminExpenses() {
         )}
       </div>
 
-      {/* Editor */}
+      {/* EDITOR */}
       {editorOpen && editing ? (
         <ModalShell
           title={editing.id ? "Edit expense" : "New expense"}
