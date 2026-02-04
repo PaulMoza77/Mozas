@@ -9,6 +9,7 @@ import {
   FileText,
   Search,
   ChevronDown,
+  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import {
@@ -44,9 +45,7 @@ function money(n: any) {
 }
 
 function formatAgg(agg: Record<string, number>) {
-  const entries = Object.entries(agg).filter(
-    ([, v]) => Number.isFinite(v) && v !== 0
-  );
+  const entries = Object.entries(agg).filter(([, v]) => Number.isFinite(v) && v !== 0);
   if (entries.length === 0) return "—";
   return entries
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -94,12 +93,8 @@ function ModalShell({
       <div className="relative w-full sm:w-[min(1040px,92vw)] max-h-[92vh] overflow-hidden rounded-t-3xl sm:rounded-3xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 p-5 sm:p-6 border-b border-slate-200 bg-white/90 backdrop-blur">
           <div className="min-w-0">
-            <p className="text-lg sm:text-xl font-semibold text-slate-900 truncate">
-              {title}
-            </p>
-            {subtitle ? (
-              <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
-            ) : null}
+            <p className="text-lg sm:text-xl font-semibold text-slate-900 truncate">{title}</p>
+            {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
           </div>
           <button
             type="button"
@@ -110,41 +105,30 @@ function ModalShell({
             Close
           </button>
         </div>
-        <div className="max-h-[calc(92vh-84px)] overflow-auto p-5 sm:p-6">
-          {children}
-        </div>
+        <div className="max-h-[calc(92vh-84px)] overflow-auto p-5 sm:p-6">{children}</div>
       </div>
     </div>
   );
 }
 
 /** =========================
- * Category Tree (edit as you want)
+ * Category Tree (poți edita când vrei)
  * ========================= */
 const CATEGORY_TREE: {
   personal: Record<string, string[]>;
   business: Record<string, string[]>;
 } = {
   personal: {
-    "Lifestyle": ["Food", "Transport", "Shopping", "Health", "Travel", "Other"],
-    "Home": ["Rent", "Utilities", "Internet", "Repairs", "Other"],
-    "Family": ["Kids", "Gifts", "Other"],
+    Lifestyle: ["Food", "Transport", "Shopping", "Health", "Travel", "Other"],
+    Home: ["Rent", "Utilities", "Internet", "Repairs", "Other"],
+    Family: ["Kids", "Gifts", "Other"],
   },
   business: {
-    "Operational": [
-      "Combustibil",
-      "Transport",
-      "Consumabile",
-      "Chirie",
-      "Utilitati",
-      "Echipamente",
-      "Mentenanta",
-      "Other",
-    ],
-    "Marketing": ["Ads", "Influencers", "Content", "PR", "Other"],
+    Operational: ["Combustibil", "Transport", "Consumabile", "Chirie", "Utilitati", "Echipamente", "Mentenanta", "Other"],
+    Marketing: ["Ads", "Influencers", "Content", "PR", "Other"],
     "Legal & Admin": ["Contabilitate", "Avocat", "Taxe", "Licente", "Other"],
-    "Software": ["SaaS", "Hosting", "Domains", "Tools", "Other"],
-    "Payroll": ["Salarii", "Comisioane", "Contractori", "Other"],
+    Software: ["SaaS", "Hosting", "Domains", "Tools", "Other"],
+    Payroll: ["Salarii", "Comisioane", "Contractori", "Other"],
   },
 };
 
@@ -156,25 +140,30 @@ type AiSuggestion = {
 
 type Draft = {
   id?: string;
-  expense_date: string; // YYYY-MM-DD
+  expense_date: string;
   vendor: string;
-  amount: string; // UI text
+  amount: string;
   currency: string;
   vat: string;
-  category: string; // stored string "Main / Sub"
+
+  // stored in DB as "Main / Sub"
+  category: string;
+
+  // editor structure
+  mainCategory: string;
+  subCategory: string;
+
   brand: string;
   note: string;
 
-  // new fields (editor v2)
-  mainCategory: string;
-  subCategory: string;
   aiSuggestion: AiSuggestion | null;
 
   receipt_url: string;
   receiptPreview: string;
   receiptFile?: File | null;
 
-  status: DbExpense["status"];
+  // DB field (NO schema change) – we store payment/status here:
+  status: string;
 };
 
 const BRAND_OPTIONS = ["Mozas", "Volocar", "GetSureDrive", "TDG", "Brandly", "Personal"];
@@ -189,14 +178,27 @@ const BRAND_DISPLAY: Record<string, string> = {
 const DASH_BRANDS = ["Mozas", "Volocar", "TDG", "Brandly", "GetSureDrive", "Personal"] as const;
 
 const CURRENCY_OPTIONS = ["AED", "EUR", "USD", "RON"];
-const EXPENSE_STATUS: Array<DbExpense["status"]> = [
-  "draft",
-  "pending_ai",
-  "ready",
-  "confirmed",
-  "error",
-];
-const STATUS_OPTIONS: Array<DbExpense["status"] | "all"> = ["all", ...EXPENSE_STATUS];
+
+/** ✅ Statusurile TALE (colorate) */
+const EXPENSE_STATUS = [
+  "Platit",
+  "Urgent",
+  "In Asteptare",
+  "Neplatit",
+  "Preplatit",
+  "Anulat",
+] as const;
+type ExpenseStatus = (typeof EXPENSE_STATUS)[number];
+const STATUS_OPTIONS: Array<ExpenseStatus | "all"> = ["all", ...EXPENSE_STATUS];
+
+const STATUS_META: Record<ExpenseStatus, { label: string; pill: string; icon?: "urgent" }> = {
+  Platit: { label: "Plătit", pill: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  Urgent: { label: "Urgent", pill: "bg-rose-50 text-rose-700 ring-rose-200", icon: "urgent" },
+  "In Asteptare": { label: "În așteptare", pill: "bg-amber-50 text-amber-700 ring-amber-200" },
+  Neplatit: { label: "Neplătit", pill: "bg-slate-50 text-slate-700 ring-slate-200" },
+  Preplatit: { label: "Preplătit", pill: "bg-sky-50 text-sky-700 ring-sky-200" },
+  Anulat: { label: "Anulat", pill: "bg-zinc-50 text-zinc-600 ring-zinc-200" },
+};
 
 type PeriodKey = "day" | "week" | "month" | "qtr" | "year" | "all";
 const PERIODS: Array<{ key: PeriodKey; label: string }> = [
@@ -227,6 +229,26 @@ function periodStart(key: PeriodKey) {
 
 function getBrandDisplay(brand: string) {
   return BRAND_DISPLAY[brand] || brand || "—";
+}
+
+function splitCategory(cat: string): { main: string; sub: string } {
+  const raw = normalizeCategory(cat);
+  if (!raw) return { main: "", sub: "" };
+  const parts = raw.split(" / ").map((x) => x.trim()).filter(Boolean);
+  if (parts.length >= 2) return { main: parts[0], sub: parts.slice(1).join(" / ") };
+  // fallback
+  const m1 = raw.split("/").map((x) => x.trim()).filter(Boolean);
+  if (m1.length >= 2) return { main: m1[0], sub: m1.slice(1).join(" / ") };
+  const m2 = raw.split(" - ").map((x) => x.trim()).filter(Boolean);
+  if (m2.length >= 2) return { main: m2[0], sub: m2.slice(1).join(" / ") };
+  return { main: raw, sub: "" };
+}
+
+function buildCategory(main: string, sub: string) {
+  const m = String(main || "").trim();
+  const s = String(sub || "").trim();
+  if (!m || !s) return "";
+  return `${m} / ${s}`;
 }
 
 /** =========================
@@ -291,9 +313,7 @@ function CategoryCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-slate-500 truncate">{title}</p>
-          <p className="mt-2 text-base sm:text-lg font-semibold text-slate-900">
-            {valueText}
-          </p>
+          <p className="mt-2 text-base sm:text-lg font-semibold text-slate-900">{valueText}</p>
         </div>
 
         <div className="shrink-0">
@@ -385,24 +405,25 @@ function TopAdminBar({
   );
 }
 
-function splitCategory(cat: string): { main: string; sub: string } {
-  const raw = normalizeCategory(cat);
-  if (!raw) return { main: "", sub: "" };
-  const parts = raw.split(" / ").map((x) => x.trim()).filter(Boolean);
-  if (parts.length >= 2) return { main: parts[0], sub: parts.slice(1).join(" / ") };
-  // fallback for legacy "Main/Sub" or "Main - Sub"
-  const m1 = raw.split("/").map((x) => x.trim()).filter(Boolean);
-  if (m1.length >= 2) return { main: m1[0], sub: m1.slice(1).join(" / ") };
-  const m2 = raw.split(" - ").map((x) => x.trim()).filter(Boolean);
-  if (m2.length >= 2) return { main: m2[0], sub: m2.slice(1).join(" / ") };
-  return { main: raw, sub: "" };
-}
+/** =========================
+ * Badge component
+ * ========================= */
+function StatusBadge({ status }: { status: any }) {
+  const s = (status || "Neplatit") as ExpenseStatus;
+  const meta = STATUS_META[s] || STATUS_META.Neplatit;
 
-function buildCategory(main: string, sub: string) {
-  const m = String(main || "").trim();
-  const s = String(sub || "").trim();
-  if (!m || !s) return "";
-  return `${m} / ${s}`;
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1",
+        meta.pill
+      )}
+      title={meta.label}
+    >
+      {meta.icon === "urgent" ? <AlertTriangle className="h-3.5 w-3.5" /> : null}
+      {meta.label}
+    </span>
+  );
 }
 
 export default function AdminExpenses() {
@@ -416,6 +437,9 @@ export default function AdminExpenses() {
 
   const [brandFilter, setBrandFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
+  // ✅ Urgent filter card (doesn't affect dashboard totals)
+  const [urgentOnly, setUrgentOnly] = useState(false);
 
   const [catMetric, setCatMetric] = useState<CatCardMetric>("sum");
 
@@ -440,66 +464,7 @@ export default function AdminExpenses() {
   }, []);
 
   /** =========================
-   * AUTO-SUGGEST CATEGORY (by vendor)
-   * ========================= */
-  useEffect(() => {
-    if (!editorOpen || !editing) return;
-    if (!editing.vendor) return;
-    if (editing.mainCategory) return;
-
-    const v = editing.vendor.toLowerCase().trim();
-    if (!v) return;
-
-    const match = rows.find((r) => {
-      const rv = String(r.vendor ?? "").toLowerCase().trim();
-      if (!rv || rv !== v) return false;
-      if ((r.brand || "") !== editing.brand) return false;
-      const c = normalizeCategory(r.category);
-      return c.includes(" / ");
-    });
-
-    if (match) {
-      const { main, sub } = splitCategory(match.category || "");
-      if (main && sub) {
-        setEditing((prev) =>
-          prev
-            ? {
-                ...prev,
-                mainCategory: main,
-                subCategory: sub,
-              }
-            : prev
-        );
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorOpen, editing?.vendor, editing?.brand, editing?.mainCategory, rows]);
-
-  /** =========================
-   * AI SUGGESTION (mock – ready)
-   * ========================= */
-  useEffect(() => {
-    if (!editorOpen || !editing) return;
-    if (!editing.receiptPreview) return;
-    if (editing.aiSuggestion) return;
-
-    // MOCK – aici va veni AI real
-    setEditing((prev) =>
-      prev
-        ? {
-            ...prev,
-            aiSuggestion: {
-              main: "Operational",
-              sub: "Combustibil",
-              confidence: 92,
-            },
-          }
-        : prev
-    );
-  }, [editorOpen, editing?.receiptPreview, editing?.aiSuggestion]);
-
-  /** =========================
-   * Base filter (period + status + search) => dashboard totals ALL brands
+   * Base filter => DASHBOARD totals (NU se schimbă când filtrezi brand/category/urgent)
    * ========================= */
   const base = useMemo(() => {
     const qq = q.trim().toLowerCase();
@@ -512,18 +477,14 @@ export default function AdminExpenses() {
         if (d < start) return false;
       }
 
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      // status filter uses your payment statuses
+      if (statusFilter !== "all") {
+        const s = (r.status || "Neplatit") as any;
+        if (s !== statusFilter) return false;
+      }
 
       if (!qq) return true;
-      const hay = [
-        r.vendor,
-        r.brand,
-        r.category,
-        r.note,
-        r.currency,
-        r.status,
-        r.expense_date,
-      ]
+      const hay = [r.vendor, r.brand, r.category, r.note, r.currency, r.status, r.expense_date]
         .map((x) => String(x ?? "").toLowerCase())
         .join(" ");
       return hay.includes(qq);
@@ -531,15 +492,17 @@ export default function AdminExpenses() {
   }, [rows, q, statusFilter, period]);
 
   /** =========================
-   * Scope = base + optional brandFilter => categories + table
+   * Scope = base + brand + urgentOnly (categories + table)
    * ========================= */
   const scope = useMemo(() => {
-    if (brandFilter === "all") return base;
-    return base.filter((r) => (r.brand || "") === brandFilter);
-  }, [base, brandFilter]);
+    let out = base;
+    if (brandFilter !== "all") out = out.filter((r) => (r.brand || "") === brandFilter);
+    if (urgentOnly) out = out.filter((r) => (r.status as any) === "Urgent");
+    return out;
+  }, [base, brandFilter, urgentOnly]);
 
   /** =========================
-   * Final = scope + optional categoryFilter => table
+   * Final = scope + categoryFilter (table)
    * ========================= */
   const filtered = useMemo(() => {
     if (categoryFilter === "all") return scope;
@@ -562,6 +525,17 @@ export default function AdminExpenses() {
       byBrand[b][cur] = (byBrand[b][cur] || 0) + amt;
     }
     return { total, byBrand };
+  }, [base]);
+
+  /** =========================
+   * Urgent card aggregate (from base)
+   * ========================= */
+  const urgentAgg = useMemo(() => {
+    const urgentRows = base.filter((r) => (r.status as any) === "Urgent");
+    return {
+      count: urgentRows.length,
+      sum: sumByCurrency(urgentRows),
+    };
   }, [base]);
 
   /** =========================
@@ -603,11 +577,7 @@ export default function AdminExpenses() {
       map.set(c, entry);
     }
 
-    const arr = Array.from(map.entries()).map(([category, v]) => ({
-      category,
-      ...v,
-    }));
-
+    const arr = Array.from(map.entries()).map(([category, v]) => ({ category, ...v }));
     arr.sort((a, b) => b.totalNumeric - a.totalNumeric);
     return arr.slice(0, 6);
   }, [scope]);
@@ -632,15 +602,15 @@ export default function AdminExpenses() {
       currency: "AED",
       vat: "",
       category: "",
-      brand: "Mozas",
-      note: "",
       mainCategory: "",
       subCategory: "",
+      brand: "Mozas",
+      note: "",
       aiSuggestion: null,
       receipt_url: "",
       receiptPreview: "",
       receiptFile: null,
-      status: "draft",
+      status: "Neplatit",
     });
     setEditorOpen(true);
   };
@@ -655,15 +625,15 @@ export default function AdminExpenses() {
       currency: r.currency || "AED",
       vat: r.vat == null ? "" : String(r.vat),
       category: r.category || "",
-      brand: r.brand || "Mozas",
-      note: r.note || "",
       mainCategory: cat.main || "",
       subCategory: cat.sub || "",
+      brand: r.brand || "Mozas",
+      note: r.note || "",
       aiSuggestion: null,
       receipt_url: r.receipt_url || "",
       receiptPreview: r.receipt_url || "",
       receiptFile: null,
-      status: r.status || "draft",
+      status: (r.status as any) || "Neplatit",
     });
     setEditorOpen(true);
   };
@@ -680,10 +650,56 @@ export default function AdminExpenses() {
     setEditing({ ...editing, receiptFile: file, receiptPreview: preview });
   };
 
+  /** =========================
+   * ✅ Auto-sugestie categorie după vendor (ultima folosită)
+   * ========================= */
+  useEffect(() => {
+    if (!editorOpen || !editing) return;
+    if (!editing.vendor || editing.mainCategory) return;
+
+    const v = editing.vendor.toLowerCase().trim();
+    if (!v) return;
+
+    // “ultima” = cea mai recentă din listă (presupunând că rows e deja sortat recent-first, dacă nu e, tot ok ca UX)
+    const match = rows.find((r) => {
+      const rv = String(r.vendor ?? "").toLowerCase().trim();
+      if (!rv || rv !== v) return false;
+      if ((r.brand || "") !== editing.brand) return false;
+      const c = normalizeCategory(r.category);
+      return c.includes(" / ");
+    });
+
+    if (match) {
+      const { main, sub } = splitCategory(match.category || "");
+      if (main && sub) setEditing((prev) => (prev ? { ...prev, mainCategory: main, subCategory: sub } : prev));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorOpen, editing?.vendor, editing?.brand, editing?.mainCategory, rows]);
+
+  /** =========================
+   * ✅ AI READY mock: dacă există receipt => sugerează categorie
+   * ========================= */
+  useEffect(() => {
+    if (!editorOpen || !editing) return;
+    if (!editing.receiptPreview) return;
+
+    setEditing((prev) =>
+      prev
+        ? {
+            ...prev,
+            aiSuggestion: {
+              main: "Operational",
+              sub: "Combustibil",
+              confidence: 92,
+            },
+          }
+        : prev
+    );
+  }, [editorOpen, editing?.receiptPreview]);
+
   const onSave = async () => {
     if (!editing) return;
 
-    // ensure category from main/sub
     const category = buildCategory(editing.mainCategory, editing.subCategory);
     if (!category) return alert("Categoria și subcategoria sunt obligatorii.");
 
@@ -722,7 +738,8 @@ export default function AdminExpenses() {
         note: editing.note.trim() || null,
         receipt_url,
         source: "manual",
-        status: editing.receiptFile ? "pending_ai" : editing.status,
+        // ✅ NO DB change: we store your status strings in the same column
+        status: editing.status as any,
       };
 
       const saved = await upsertExpenseDb(payload);
@@ -762,8 +779,7 @@ export default function AdminExpenses() {
 
   const selectedBrandLabel =
     brandFilter === "all" ? "All brands" : BRAND_DISPLAY[brandFilter] || brandFilter;
-  const selectedCategoryLabel =
-    categoryFilter === "all" ? "All categories" : categoryFilter;
+  const selectedCategoryLabel = categoryFilter === "all" ? "All categories" : categoryFilter;
 
   const isPersonal = editing?.brand === "Personal";
   const categoryRoot = isPersonal ? CATEGORY_TREE.personal : CATEGORY_TREE.business;
@@ -780,13 +796,17 @@ export default function AdminExpenses() {
 
       {/* DASHBOARD */}
       <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 sm:p-6">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-8">
+          {/* Total card */}
           <button
             type="button"
-            onClick={() => toggleBrand("all")}
+            onClick={() => {
+              setUrgentOnly(false);
+              toggleBrand("all");
+            }}
             className={clsx(
               "text-left lg:col-span-2 rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
-              brandFilter === "all"
+              brandFilter === "all" && !urgentOnly
                 ? "border-slate-900 ring-1 ring-slate-900/10"
                 : "border-slate-200"
             )}
@@ -800,17 +820,38 @@ export default function AdminExpenses() {
               <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
                 {base.length} items
               </span>
-              {statusFilter !== "all" ? (
-                <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
-                  Status: {statusFilter}
-                </span>
-              ) : null}
-              {q.trim() ? (
-                <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
-                  Search: “{q.trim()}”
+              {urgentOnly ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-rose-200 text-rose-700">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Urgent only
                 </span>
               ) : null}
             </div>
+          </button>
+
+          {/* ✅ NEW CARD: Urgent */}
+          <button
+            type="button"
+            onClick={() => {
+              setCategoryFilter("all");
+              setUrgentOnly((p) => !p);
+            }}
+            className={clsx(
+              "text-left rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
+              urgentOnly ? "border-rose-600 ring-1 ring-rose-600/10" : "border-slate-200"
+            )}
+            title="Click: filtrează doar urgente (nu afectează totalurile)"
+          >
+            <p className="text-xs font-semibold text-slate-500 inline-flex items-center gap-2">
+              <span className="inline-flex items-center gap-1">
+                <AlertTriangle className="h-4 w-4 text-rose-600" />
+                Urgent
+              </span>
+            </p>
+            <p className="mt-2 text-base sm:text-lg font-semibold text-slate-900">
+              {formatAgg(urgentAgg.sum)}
+            </p>
+            <p className="mt-2 text-xs text-slate-500">{urgentAgg.count} items</p>
           </button>
 
           {DASH_BRANDS.map((b) => {
@@ -822,10 +863,13 @@ export default function AdminExpenses() {
               <button
                 key={b}
                 type="button"
-                onClick={() => toggleBrand(b)}
+                onClick={() => {
+                  setUrgentOnly(false);
+                  toggleBrand(b);
+                }}
                 className={clsx(
                   "text-left rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
-                  active ? "border-slate-900 ring-1 ring-slate-900/10" : "border-slate-200"
+                  active && !urgentOnly ? "border-slate-900 ring-1 ring-slate-900/10" : "border-slate-200"
                 )}
                 title={`Click: filter table + categories → ${label}`}
               >
@@ -847,6 +891,14 @@ export default function AdminExpenses() {
                 Filtrate după: <span className="font-semibold">{selectedBrandLabel}</span>
                 {" · "}
                 <span className="font-semibold">{selectedCategoryLabel}</span>
+                {urgentOnly ? (
+                  <>
+                    {" · "}
+                    <span className="font-semibold text-rose-700 inline-flex items-center gap-1">
+                      <AlertTriangle className="h-4 w-4" /> Urgent only
+                    </span>
+                  </>
+                ) : null}
               </p>
             </div>
           </div>
@@ -957,6 +1009,7 @@ export default function AdminExpenses() {
           <select
             value={brandFilter}
             onChange={(e) => {
+              setUrgentOnly(false);
               setCategoryFilter("all");
               setBrandFilter(e.target.value);
             }}
@@ -979,7 +1032,7 @@ export default function AdminExpenses() {
           >
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {s === "all" ? "All statuses" : s}
+                {s === "all" ? "All statuses" : STATUS_META[s]?.label || s}
               </option>
             ))}
           </select>
@@ -1021,22 +1074,16 @@ export default function AdminExpenses() {
                       ) : null}
                     </td>
 
-                    <td className="px-4 py-3 text-slate-700">
-                      {getBrandDisplay(r.brand || "")}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{getBrandDisplay(r.brand || "")}</td>
 
-                    <td className="px-4 py-3 text-slate-700">
-                      {normalizeCategory(r.category) || "—"}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{normalizeCategory(r.category) || "—"}</td>
 
                     <td className="px-4 py-3 font-semibold text-slate-900">
                       {(r.currency || "AED").toUpperCase()} {money(r.amount)}
                     </td>
 
                     <td className="px-4 py-3">
-                      <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
-                        {r.status}
-                      </span>
+                      <StatusBadge status={r.status} />
                     </td>
 
                     <td className="px-4 py-3">
@@ -1090,7 +1137,7 @@ export default function AdminExpenses() {
         )}
       </div>
 
-      {/* EDITOR (integrated exact layout, fixed hooks) */}
+      {/* EDITOR */}
       {editorOpen && editing ? (
         <ModalShell
           title={editing.id ? "Edit expense" : "New expense"}
@@ -1100,16 +1147,13 @@ export default function AdminExpenses() {
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
             {/* LEFT */}
             <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 sm:p-6">
-              {/* Date + Brand */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs font-semibold mb-1">Date</p>
                   <input
                     type="date"
                     value={editing.expense_date}
-                    onChange={(e) =>
-                      setEditing({ ...editing, expense_date: e.target.value })
-                    }
+                    onChange={(e) => setEditing({ ...editing, expense_date: e.target.value })}
                     className="w-full rounded-2xl border px-3 py-2 text-sm"
                   />
                 </div>
@@ -1137,7 +1181,6 @@ export default function AdminExpenses() {
                 </div>
               </div>
 
-              {/* Vendor */}
               <div>
                 <p className="text-xs font-semibold mb-1">Vendor</p>
                 <input
@@ -1147,7 +1190,6 @@ export default function AdminExpenses() {
                 />
               </div>
 
-              {/* Amount / Currency / Status */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <p className="text-xs font-semibold mb-1">Amount</p>
@@ -1177,14 +1219,12 @@ export default function AdminExpenses() {
                   <p className="text-xs font-semibold mb-1">Status</p>
                   <select
                     value={editing.status}
-                    onChange={(e) =>
-                      setEditing({ ...editing, status: e.target.value as DbExpense["status"] })
-                    }
+                    onChange={(e) => setEditing({ ...editing, status: e.target.value })}
                     className="w-full rounded-2xl border px-3 py-2 text-sm"
                   >
                     {EXPENSE_STATUS.map((s) => (
                       <option key={s} value={s}>
-                        {s}
+                        {STATUS_META[s].label}
                       </option>
                     ))}
                   </select>
@@ -1219,9 +1259,7 @@ export default function AdminExpenses() {
                   <p className="text-xs font-semibold mb-1">Subcategorie *</p>
                   <select
                     value={editing.subCategory}
-                    onChange={(e) =>
-                      setEditing({ ...editing, subCategory: e.target.value })
-                    }
+                    onChange={(e) => setEditing({ ...editing, subCategory: e.target.value })}
                     disabled={!editing.mainCategory}
                     className="w-full rounded-2xl border px-3 py-2 text-sm disabled:opacity-50"
                   >
@@ -1260,7 +1298,6 @@ export default function AdminExpenses() {
                 </div>
               )}
 
-              {/* NOTE */}
               <div>
                 <p className="text-xs font-semibold mb-1">Note</p>
                 <textarea
@@ -1320,11 +1357,7 @@ export default function AdminExpenses() {
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <button
-                  onClick={closeEditor}
-                  className="rounded-2xl border px-4 py-2 text-sm"
-                  disabled={saving}
-                >
+                <button onClick={closeEditor} className="rounded-2xl border px-4 py-2 text-sm" disabled={saving}>
                   Cancel
                 </button>
                 <button
