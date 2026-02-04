@@ -5,7 +5,7 @@ import { Home } from "./pages/Home";
 import AdminGate from "./pages/AdminGate";
 
 import Admin from "./pages/Admin";
-import AdminBrands from "./pages/AdminBrands";
+import AdminBrands from "./pages/admin/AdminBrands";
 import AdminExpenses from "./pages/admin/AdminExpenses";
 import AdminLogin from "./pages/AdminLogin";
 
