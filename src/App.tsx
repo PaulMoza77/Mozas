@@ -9,45 +9,34 @@ import AdminBrands from "./pages/admin/AdminBrands";
 import AdminExpenses from "./pages/admin/AdminExpenses";
 import AdminLogin from "./pages/AdminLogin";
 
+function AdminLayout() {
+  return (
+    <AdminGate>
+      {/* AdminGate returnează children -> aici intră toate rutele admin */}
+      <Routes>
+        <Route index element={<Admin />} />
+        <Route path="brands" element={<AdminBrands />} />
+        <Route path="expenses" element={<AdminExpenses />} />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
+      </Routes>
+    </AdminGate>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ================= Public ================= */}
+        {/* Public */}
         <Route path="/" element={<Home />} />
 
-        {/* ================= Admin Login ================= */}
+        {/* Admin login */}
         <Route path="/admin/login" element={<AdminLogin />} />
 
-        {/* ================= Admin (protected) ================= */}
-        <Route
-          path="/admin"
-          element={
-            <AdminGate>
-              <Admin />
-            </AdminGate>
-          }
-        />
+        {/* Admin protected group */}
+        <Route path="/admin/*" element={<AdminLayout />} />
 
-        <Route
-          path="/admin/brands"
-          element={
-            <AdminGate>
-              <AdminBrands />
-            </AdminGate>
-          }
-        />
-
-        <Route
-          path="/admin/expenses"
-          element={
-            <AdminGate>
-              <AdminExpenses />
-            </AdminGate>
-          }
-        />
-
-        {/* ================= Fallback ================= */}
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
