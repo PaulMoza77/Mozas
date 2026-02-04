@@ -1,5 +1,6 @@
 // src/pages/admin/AdminExpenses.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { NavLink } from "react-router-dom";
 import { Plus, Upload, X, Trash2, Save, FileText, Search } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import {
@@ -21,10 +22,37 @@ function todayISO() {
   return `${y}-${m}-${dd}`;
 }
 
+function parseISOToDate(iso?: string | null) {
+  if (!iso) return null;
+  const [y, m, d] = String(iso).split("-").map((n) => Number(n));
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 12, 0, 0); // local noon avoids TZ edge
+}
+
 function money(n: any) {
   const v = Number(n);
-  if (!Number.isFinite(v)) return "";
+  if (!Number.isFinite(v)) return "0.00";
   return v.toFixed(2);
+}
+
+function formatAgg(agg: Record<string, number>) {
+  const entries = Object.entries(agg).filter(([, v]) => Number.isFinite(v) && v !== 0);
+  if (entries.length === 0) return "—";
+  return entries
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([cur, v]) => `${cur} ${money(v)}`)
+    .join(" · ");
+}
+
+function sumByCurrency(rows: DbExpense[]) {
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    const cur = (r.currency || "AED").toUpperCase();
+    const amt = Number(r.amount);
+    if (!Number.isFinite(amt)) continue;
+    out[cur] = (out[cur] || 0) + amt;
+  }
+  return out;
 }
 
 function ModalShell({
@@ -46,7 +74,7 @@ function ModalShell({
         onClick={onClose}
         className="absolute inset-0 bg-black/40"
       />
-      <div className="relative w-full sm:w-[min(960px,92vw)] max-h-[92vh] overflow-hidden rounded-t-3xl sm:rounded-3xl border border-slate-200 bg-white shadow-2xl">
+      <div className="relative w-full sm:w-[min(1040px,92vw)] max-h-[92vh] overflow-hidden rounded-t-3xl sm:rounded-3xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 p-5 sm:p-6 border-b border-slate-200 bg-white/90 backdrop-blur">
           <div className="min-w-0">
             <p className="text-lg sm:text-xl font-semibold text-slate-900 truncate">{title}</p>
@@ -86,6 +114,16 @@ type Draft = {
 };
 
 const BRAND_OPTIONS = ["Mozas", "Volocar", "GetSureDrive", "TDG", "Brandly"];
+const BRAND_DISPLAY: Record<string, string> = {
+  Mozas: "TheMozas",
+  Volocar: "Volocar",
+  TDG: "TDG",
+  Brandly: "BRANDLY",
+  GetSureDrive: "GETSUREDRIVE",
+};
+
+const DASH_BRANDS = ["Mozas", "Volocar", "TDG", "Brandly", "GetSureDrive"] as const;
+
 const CURRENCY_OPTIONS = ["AED", "EUR", "USD", "RON"];
 const STATUS_OPTIONS: Array<DbExpense["status"] | "all"> = [
   "all",
@@ -95,6 +133,32 @@ const STATUS_OPTIONS: Array<DbExpense["status"] | "all"> = [
   "confirmed",
   "error",
 ];
+
+type PeriodKey = "day" | "week" | "month" | "qtr" | "year" | "all";
+const PERIODS: Array<{ key: PeriodKey; label: string }> = [
+  { key: "day", label: "Zi" },
+  { key: "week", label: "Săpt." },
+  { key: "month", label: "Lună" },
+  { key: "qtr", label: "3 luni" },
+  { key: "year", label: "1 an" },
+  { key: "all", label: "All time" },
+];
+
+function periodStart(key: PeriodKey) {
+  if (key === "all") return null;
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+  const start = new Date(end);
+  if (key === "day") start.setDate(end.getDate());
+  if (key === "week") start.setDate(end.getDate() - 6);
+  if (key === "month") start.setDate(end.getDate() - 29);
+  if (key === "qtr") start.setDate(end.getDate() - 89);
+  if (key === "year") start.setDate(end.getDate() - 364);
+
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
 
 async function uploadReceipt(file: File) {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
@@ -108,7 +172,7 @@ async function uploadReceipt(file: File) {
   if (error) throw error;
 
   const { data } = supabase.storage.from("expenses").getPublicUrl(path);
-  return data.publicUrl; // full URL
+  return data.publicUrl;
 }
 
 function extractExpenseStoragePath(publicUrl: string) {
@@ -123,9 +187,52 @@ async function deleteReceipt(publicUrl: string | null) {
   await supabase.storage.from("expenses").remove([path]);
 }
 
+function TopAdminNav() {
+  const linkBase =
+    "inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold border";
+  const active = "bg-slate-900 text-white border-slate-900";
+  const inactive = "bg-white text-slate-700 border-slate-200 hover:bg-slate-50";
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white/80 p-3 sm:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+            Admin
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-900">Expenses</h2>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <NavLink
+            to="/admin/overview"
+            className={({ isActive }) => clsx(linkBase, isActive ? active : inactive)}
+          >
+            Overview
+          </NavLink>
+          <NavLink
+            to="/admin/brands"
+            className={({ isActive }) => clsx(linkBase, isActive ? active : inactive)}
+          >
+            Brands
+          </NavLink>
+          <NavLink
+            to="/admin/expenses"
+            className={({ isActive }) => clsx(linkBase, isActive ? active : inactive)}
+          >
+            Expenses
+          </NavLink>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminExpenses() {
   const [rows, setRows] = useState<DbExpense[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [period, setPeriod] = useState<PeriodKey>("month");
 
   const [q, setQ] = useState("");
   const [brandFilter, setBrandFilter] = useState<string>("all");
@@ -153,10 +260,21 @@ export default function AdminExpenses() {
 
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
+    const start = periodStart(period);
+
     return rows.filter((r) => {
+      // period
+      if (start) {
+        const d = parseISOToDate(r.expense_date);
+        if (!d) return false;
+        if (d < start) return false;
+      }
+
+      // filters
       if (brandFilter !== "all" && (r.brand || "") !== brandFilter) return false;
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
 
+      // search
       if (!qq) return true;
       const hay = [
         r.vendor,
@@ -165,12 +283,31 @@ export default function AdminExpenses() {
         r.note,
         r.currency,
         r.status,
+        r.expense_date,
       ]
         .map((x) => String(x ?? "").toLowerCase())
         .join(" ");
       return hay.includes(qq);
     });
-  }, [rows, q, brandFilter, statusFilter]);
+  }, [rows, q, brandFilter, statusFilter, period]);
+
+  const dashboard = useMemo(() => {
+    const total = sumByCurrency(filtered);
+
+    const byBrand: Record<string, Record<string, number>> = {};
+    for (const b of DASH_BRANDS) byBrand[b] = {};
+
+    for (const r of filtered) {
+      const b = (r.brand || "") as (typeof DASH_BRANDS)[number];
+      if (!byBrand[b]) continue;
+      const cur = (r.currency || "AED").toUpperCase();
+      const amt = Number(r.amount);
+      if (!Number.isFinite(amt)) continue;
+      byBrand[b][cur] = (byBrand[b][cur] || 0) + amt;
+    }
+
+    return { total, byBrand };
+  }, [filtered]);
 
   const openCreate = () => {
     setEditing({
@@ -229,8 +366,7 @@ export default function AdminExpenses() {
 
     const amountNum =
       editing.amount.trim() === "" ? null : Number(editing.amount.replace(",", "."));
-    const vatNum =
-      editing.vat.trim() === "" ? null : Number(editing.vat.replace(",", "."));
+    const vatNum = editing.vat.trim() === "" ? null : Number(editing.vat.replace(",", "."));
 
     if (amountNum != null && !Number.isFinite(amountNum)) return alert("Amount invalid.");
     if (vatNum != null && !Number.isFinite(vatNum)) return alert("VAT invalid.");
@@ -239,14 +375,11 @@ export default function AdminExpenses() {
     try {
       let receipt_url = editing.receipt_url || null;
 
-      // If user picked a new file → upload; if had an old receipt_url → delete old
       if (editing.receiptFile) {
         const newUrl = await uploadReceipt(editing.receiptFile);
-
         if (editing.receipt_url && editing.receipt_url !== newUrl) {
           await deleteReceipt(editing.receipt_url);
         }
-
         receipt_url = newUrl;
       }
 
@@ -255,14 +388,14 @@ export default function AdminExpenses() {
         expense_date,
         vendor,
         amount: amountNum,
-        currency: editing.currency || "AED",
+        currency: (editing.currency || "AED").toUpperCase(),
         vat: vatNum,
         category: editing.category.trim() || null,
         brand: editing.brand.trim() || null,
         note: editing.note.trim() || null,
         receipt_url,
         source: "manual",
-        status: editing.receiptFile ? "pending_ai" : editing.status, // next step: AI
+        status: editing.receiptFile ? "pending_ai" : editing.status,
       };
 
       const saved = await upsertExpenseDb(payload);
@@ -289,14 +422,12 @@ export default function AdminExpenses() {
     const ok = window.confirm("Delete this expense?");
     if (!ok) return;
 
-    // optimistic
     setRows((prev) => prev.filter((x) => x.id !== r.id));
 
     try {
-      // delete receipt from storage (if exists)
       if (r.receipt_url) await deleteReceipt(r.receipt_url);
       await deleteExpenseDb(r.id);
-    } catch (e) {
+    } catch {
       alert("Delete failed. Reloading.");
       await load();
     }
@@ -304,7 +435,84 @@ export default function AdminExpenses() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {/* Top nav */}
+      <TopAdminNav />
+
+      {/* Dashboard */}
+      <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+              Dashboard
+            </p>
+            <h3 className="mt-1 text-xl font-semibold text-slate-900">Cheltuieli</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Total + breakdown pe brand (filtrat pe perioadă).
+            </p>
+          </div>
+
+          {/* Period filter */}
+          <div className="flex flex-wrap gap-2">
+            {PERIODS.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setPeriod(p.key)}
+                className={clsx(
+                  "rounded-2xl px-3 py-2 text-sm font-semibold border",
+                  period === p.key
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-6">
+          {/* Total */}
+          <div className="lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-4 sm:p-5">
+            <p className="text-xs font-semibold text-slate-500">Total cheltuieli</p>
+            <p className="mt-2 text-lg sm:text-xl font-semibold text-slate-900">
+              {formatAgg(dashboard.total)}
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
+                {filtered.length} items
+              </span>
+              {brandFilter !== "all" ? (
+                <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
+                  Brand: {BRAND_DISPLAY[brandFilter] || brandFilter}
+                </span>
+              ) : null}
+              {statusFilter !== "all" ? (
+                <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
+                  Status: {statusFilter}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Brand cards */}
+          {DASH_BRANDS.map((b) => (
+            <div
+              key={b}
+              className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5"
+            >
+              <p className="text-xs font-semibold text-slate-500">
+                Expenses: {BRAND_DISPLAY[b]}
+              </p>
+              <p className="mt-2 text-base font-semibold text-slate-900">
+                {formatAgg(dashboard.byBrand[b])}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Header + actions */}
       <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -359,7 +567,7 @@ export default function AdminExpenses() {
             <option value="all">All brands</option>
             {BRAND_OPTIONS.map((b) => (
               <option key={b} value={b}>
-                {b}
+                {BRAND_DISPLAY[b] || b}
               </option>
             ))}
           </select>
@@ -402,9 +610,8 @@ export default function AdminExpenses() {
               <tbody className="divide-y">
                 {filtered.map((r) => (
                   <tr key={r.id} className="bg-white">
-                    <td className="px-4 py-3 text-slate-700">
-                      {r.expense_date || "—"}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{r.expense_date || "—"}</td>
+
                     <td className="px-4 py-3 font-semibold text-slate-900">
                       {r.vendor || "—"}
                       {r.note ? (
@@ -413,16 +620,23 @@ export default function AdminExpenses() {
                         </div>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{r.brand || "—"}</td>
-                    <td className="px-4 py-3 text-slate-700">{r.category || "—"}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-900">
-                      {(r.currency || "AED") + " " + money(r.amount)}
+
+                    <td className="px-4 py-3 text-slate-700">
+                      {BRAND_DISPLAY[r.brand || ""] || r.brand || "—"}
                     </td>
+
+                    <td className="px-4 py-3 text-slate-700">{r.category || "—"}</td>
+
+                    <td className="px-4 py-3 font-semibold text-slate-900">
+                      {(r.currency || "AED").toUpperCase()} {money(r.amount)}
+                    </td>
+
                     <td className="px-4 py-3">
                       <span className="inline-flex rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-slate-200 text-slate-700">
                         {r.status}
                       </span>
                     </td>
+
                     <td className="px-4 py-3">
                       {r.receipt_url ? (
                         <a
@@ -438,6 +652,7 @@ export default function AdminExpenses() {
                         <span className="text-xs text-slate-400">—</span>
                       )}
                     </td>
+
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -503,7 +718,7 @@ export default function AdminExpenses() {
                   >
                     {BRAND_OPTIONS.map((b) => (
                       <option key={b} value={b}>
-                        {b}
+                        {BRAND_DISPLAY[b] || b}
                       </option>
                     ))}
                   </select>
@@ -588,14 +803,11 @@ export default function AdminExpenses() {
               <div className="mt-4 rounded-2xl border border-slate-200 bg-white overflow-hidden">
                 <div className="aspect-[4/3] w-full bg-slate-50 flex items-center justify-center overflow-hidden">
                   {editing.receiptPreview ? (
-                    // image or url preview
-                    // if it's a PDF, browser will show blank; that's fine for now
                     <img
                       src={editing.receiptPreview}
                       alt="Receipt"
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        // show placeholder if not an image
                         (e.currentTarget as HTMLImageElement).style.display = "none";
                       }}
                     />
@@ -627,7 +839,12 @@ export default function AdminExpenses() {
                     <button
                       type="button"
                       onClick={() =>
-                        setEditing({ ...editing, receiptFile: null, receiptPreview: "", receipt_url: "" })
+                        setEditing({
+                          ...editing,
+                          receiptFile: null,
+                          receiptPreview: "",
+                          receipt_url: "",
+                        })
                       }
                       className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                     >
