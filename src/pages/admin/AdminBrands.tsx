@@ -1,16 +1,29 @@
-// src/pages/admin/AdminBrands.tsx
 import { useMemo, useState } from "react";
+
 import type { BrandDraft, BrandRow } from "./brands/types";
 import { useBrands } from "./brands/hooks/useBrands";
+
 import { BrandsTopBar } from "./brands/components/BrandsTopBar";
 import { BrandsList } from "./brands/components/BrandsList";
 import { BrandEditorModal } from "./brands/components/BrandEditorModal";
 import { EmptyState } from "./brands/components/EmptyState";
+
 import { emptyDraft, toDraftFromRow } from "./brands/utils";
 
 export default function AdminBrands() {
-  const { rows, loading, saving, errorMsg, setErrorMsg, isEmpty, load, upsert, remove, importDefaultsIfEmpty, uploadLogo } =
-    useBrands();
+  const {
+    rows,
+    loading,
+    saving,
+    errorMsg,
+    setErrorMsg,
+    isEmpty,
+    load,
+    upsert,
+    remove,
+    importDefaultsIfEmpty,
+    uploadLogo,
+  } = useBrands();
 
   const [query, setQuery] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
@@ -20,6 +33,7 @@ export default function AdminBrands() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
+
     return rows.filter((r) => {
       const badgesText = Array.isArray(r.badges) ? r.badges.join(" ") : "";
       return (
@@ -38,10 +52,10 @@ export default function AdminBrands() {
     setEditorOpen(true);
   };
 
-  const openEdit = (r: BrandRow) => {
+  const openEdit = (row: BrandRow) => {
     setErrorMsg(null);
-    setEditingRow(r);
-    setDraft(toDraftFromRow(r));
+    setEditingRow(row);
+    setDraft(toDraftFromRow(row));
     setEditorOpen(true);
   };
 
@@ -58,10 +72,10 @@ export default function AdminBrands() {
     closeEditor();
   };
 
-  const onDelete = async (r: BrandRow) => {
-    const ok = window.confirm(`Delete brand "${r.name}"?`);
+  const onDelete = async (row: BrandRow) => {
+    const ok = window.confirm(`Delete brand "${row.name}"?`);
     if (!ok) return;
-    await remove(r.id);
+    await remove(row.id);
   };
 
   return (
@@ -84,9 +98,19 @@ export default function AdminBrands() {
         ) : null}
 
         {!loading && filtered.length === 0 ? (
-          <EmptyState saving={saving} onCreate={openCreate} onImport={importDefaultsIfEmpty} showImport={isEmpty} />
+          <EmptyState
+            saving={saving}
+            onCreate={openCreate}
+            onImport={importDefaultsIfEmpty}
+            showImport={isEmpty}
+          />
         ) : (
-          <BrandsList loading={loading} rows={filtered} onEdit={openEdit} onDelete={onDelete} />
+          <BrandsList
+            loading={loading}
+            rows={filtered}
+            onEdit={openEdit}
+            onDelete={onDelete}
+          />
         )}
 
         <BrandEditorModal
