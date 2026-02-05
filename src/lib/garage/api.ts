@@ -1,3 +1,4 @@
+// src/lib/garage/api.ts
 import { supabase } from "../supabase";
 import type {
   GarageCarRow,
@@ -10,12 +11,66 @@ import type {
   GarageExpenseKind,
 } from "./types";
 
+/** =========================
+ * Storage config
+ * ========================= */
+export const GARAGE_BUCKET = "garage-private"; // ✅ MUST exist in Supabase Storage
+
 function todayISO() {
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${dd}`;
+}
+
+function safeExt(name: string) {
+  const parts = (name || "").split(".");
+  const ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "jpg";
+  // allow common
+  if (["jpg", "jpeg", "png", "webp"].includes(ext)) return ext;
+  return "jpg";
+}
+
+function rand6() {
+  return Math.random().toString(16).slice(2, 8);
+}
+
+/** =========================
+ * Storage helpers (car photo)
+ * - store ONLY photo_path in DB
+ * - generate signed URL for display
+ * ========================= */
+export async function uploadGarageCarPhoto(file: File, carId: string) {
+  if (!file) throw new Error("Missing file.");
+  if (!carId) throw new Error("Missing carId.");
+
+  const ext = safeExt(file.name);
+  const path = `cars/${carId}/${Date.now()}_${rand6()}.${ext}`;
+
+  const up = await supabase.storage.from(GARAGE_BUCKET).upload(path, file, {
+    upsert: true,
+    contentType: file.type || undefined,
+    cacheControl: "3600",
+  });
+
+  if (up.error) throw up.error;
+  return { photo_path: path };
+}
+
+export async function deleteGarageCarPhoto(photo_path: string) {
+  if (!photo_path) return;
+  const del = await supabase.storage.from(GARAGE_BUCKET).remove([photo_path]);
+  if (del.error) throw del.error;
+}
+
+export async function getGarageCarPhotoSignedUrl(photo_path: string, expiresInSeconds = 60 * 60) {
+  if (!photo_path) return null;
+
+  const signed = await supabase.storage.from(GARAGE_BUCKET).createSignedUrl(photo_path, expiresInSeconds);
+  if (signed.error) throw signed.error;
+
+  return signed.data?.signedUrl || null;
 }
 
 /* =========================
@@ -51,19 +106,29 @@ export async function deleteCar(id: string) {
    IMPORTANT
 ========================= */
 export async function fetchImportant(carId: string): Promise<GarageImportantRow | null> {
-  const res = await supabase.from("garage_car_important").select("*").eq("car_id", carId).maybeSingle();
+  const res = await supabase
+    .from("garage_car_important")
+    .select("*")
+    .eq("car_id", carId)
+    .maybeSingle();
+
   if (res.error) throw res.error;
   return (res.data as GarageImportantRow) || null;
 }
 
 export async function upsertImportant(payload: Partial<GarageImportantRow> & { car_id: string }) {
-  const res = await supabase.from("garage_car_important").upsert(payload, { onConflict: "car_id" }).select("*").single();
+  const res = await supabase
+    .from("garage_car_important")
+    .upsert(payload, { onConflict: "car_id" })
+    .select("*")
+    .single();
+
   if (res.error) throw res.error;
   return res.data as GarageImportantRow;
 }
 
 /* =========================
-   EXPENSES / INCOME
+   EXPENSES
 ========================= */
 export async function fetchCarExpenses(carId: string): Promise<GarageExpenseRow[]> {
   const res = await supabase
@@ -94,7 +159,7 @@ export async function addCarExpense(payload: {
       name: payload.name,
       vendor: payload.vendor ?? null,
       amount: payload.amount,
-      currency: payload.currency || "EUR",
+      currency: (payload.currency || "EUR").toUpperCase(),
       kind: payload.kind || "general",
       note: payload.note ?? null,
     })
@@ -110,6 +175,9 @@ export async function deleteCarExpense(id: string) {
   if (res.error) throw res.error;
 }
 
+/* =========================
+   INCOME
+========================= */
 export async function fetchCarIncome(carId: string): Promise<GarageIncomeRow[]> {
   const res = await supabase
     .from("garage_car_income")
@@ -136,7 +204,7 @@ export async function addCarIncome(payload: {
       date: payload.date || todayISO(),
       source: payload.source,
       amount: payload.amount,
-      currency: payload.currency || "EUR",
+      currency: (payload.currency || "EUR").toUpperCase(),
       note: payload.note ?? null,
     })
     .select("*")
@@ -155,7 +223,12 @@ export async function deleteCarIncome(id: string) {
    LEASING
 ========================= */
 export async function fetchLeasingContract(carId: string): Promise<GarageLeasingContractRow | null> {
-  const res = await supabase.from("garage_leasing_contracts").select("*").eq("car_id", carId).maybeSingle();
+  const res = await supabase
+    .from("garage_leasing_contracts")
+    .select("*")
+    .eq("car_id", carId)
+    .maybeSingle();
+
   if (res.error) throw res.error;
   return (res.data as GarageLeasingContractRow) || null;
 }
