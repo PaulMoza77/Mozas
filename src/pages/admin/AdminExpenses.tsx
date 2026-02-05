@@ -7,8 +7,7 @@ import { DashboardCards } from "./expenses/components/DashboardCards";
 import { CategorySection } from "./expenses/components/CategorySection";
 import { FiltersRow } from "./expenses/components/FiltersRow";
 import { ExpenseTable } from "./expenses/components/ExpenseTable";
-
-// ⚠️ structura ta e components/modal (nu modals)
+import { ImportXlsxButton } from "./expenses/components/ImportXlsxButton";
 import { ExpenseEditorModal } from "./expenses/components/modal/ExpenseEditorModal";
 
 import { useExpenses } from "./expenses/hooks/useExpenses";
@@ -38,7 +37,8 @@ import {
 import { deleteReceipt, uploadReceipt } from "./expenses/storage";
 
 export default function AdminExpenses() {
-  const { rows, loading, reload, upsertDb, deleteDb, removeLocal } = useExpenses();
+  const { rows, loading, reload, upsertDb, deleteDb, removeLocal, insertMany } =
+    useExpenses();
 
   const [period, setPeriod] = useState<PeriodKey>("month");
 
@@ -75,6 +75,7 @@ export default function AdminExpenses() {
       }
 
       if (!qq) return true;
+
       const hay = [
         r.vendor,
         r.brand,
@@ -86,6 +87,7 @@ export default function AdminExpenses() {
       ]
         .map((x) => String(x ?? "").toLowerCase())
         .join(" ");
+
       return hay.includes(qq);
     });
   }, [rows, q, statusFilter, period]);
@@ -120,9 +122,11 @@ export default function AdminExpenses() {
     for (const r of base) {
       const b = (r.brand || "") as keyof typeof byBrand;
       if (!byBrand[b]) continue;
+
       const cur = (r.currency || "AED").toUpperCase();
       const amt = Number(r.amount);
       if (!Number.isFinite(amt)) continue;
+
       byBrand[b][cur] = (byBrand[b][cur] || 0) + amt;
     }
 
@@ -212,7 +216,7 @@ export default function AdminExpenses() {
       expense_date: r.expense_date || todayISO(),
       vendor: r.vendor || "",
       amount: r.amount == null ? "" : String(r.amount),
-      currency: r.currency || "AED",
+      currency: (r.currency || "AED").toUpperCase(),
       vat: r.vat == null ? "" : String(r.vat),
       category: r.category || "",
       mainCategory: cat.main || "",
@@ -223,7 +227,7 @@ export default function AdminExpenses() {
       receipt_url: r.receipt_url || "",
       receiptPreview: r.receipt_url || "",
       receiptFile: null,
-      status: (r.status as any) || "Neplatit",
+      status: ((r.status as any) || "Neplatit") as any,
     });
     setEditorOpen(true);
   };
@@ -273,7 +277,7 @@ export default function AdminExpenses() {
         receipt_url = newUrl;
       }
 
-      const payload: any = {
+      const payload: Partial<DbExpense> & { id?: string } = {
         ...(editing.id ? { id: editing.id } : {}),
         expense_date,
         vendor,
@@ -281,11 +285,11 @@ export default function AdminExpenses() {
         currency: (editing.currency || "AED").toUpperCase(),
         vat: vatNum,
         category,
-        brand: editing.brand.trim() || null,
-        note: editing.note.trim() || null,
+        brand: editing.brand?.trim() || null,
+        note: editing.note?.trim() || null,
         receipt_url,
         source: "manual",
-        status: editing.status,
+        status: editing.status as any,
       };
 
       await upsertDb(payload);
@@ -301,6 +305,7 @@ export default function AdminExpenses() {
     const ok = window.confirm("Delete this expense?");
     if (!ok) return;
 
+    // optimistic
     removeLocal(r.id);
 
     try {
@@ -314,7 +319,9 @@ export default function AdminExpenses() {
 
   const selectedBrandLabel =
     brandFilter === "all" ? "All brands" : BRAND_DISPLAY[brandFilter] || brandFilter;
-  const selectedCategoryLabel = categoryFilter === "all" ? "All categories" : categoryFilter;
+
+  const selectedCategoryLabel =
+    categoryFilter === "all" ? "All categories" : categoryFilter;
 
   return (
     <div className="space-y-5">
@@ -345,12 +352,28 @@ export default function AdminExpenses() {
         setCatMetric={setCatMetric}
       />
 
-      {/* New expense */}
-      <div className="flex items-center justify-end">
+      {/* Actions row */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+        <ImportXlsxButton
+          year={new Date().getFullYear()}
+          brand={brandFilter !== "all" ? brandFilter : "Volocar"}
+          currency="AED"
+          status="Neplatit"
+          onImport={async (payloads) => {
+            // Map ImportExpensePayload[] to Partial<DbExpense>[] and set source to "manual"
+            const dbPayloads = payloads.map((p) => ({
+              ...p,
+              source: "manual" as const,
+              status: (p.status as DbExpense["status"]) ?? undefined,
+            }));
+            await insertMany(dbPayloads);
+          }}
+        />
+
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 text-white px-4 py-2.5 text-sm font-semibold shadow"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow"
         >
           <Plus className="h-4 w-4" />
           New expense
