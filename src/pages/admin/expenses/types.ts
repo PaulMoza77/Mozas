@@ -1,5 +1,4 @@
-// src/pages/admin/expenses/types.ts
-import type { DbExpense } from "../../../lib/expensesApi";
+import type { DbExpense as DbExpenseBase } from "../../../lib/expensesApi";
 
 export type AiSuggestion = {
   main: string;
@@ -19,11 +18,12 @@ export const EXPENSE_STATUS = [
 export type ExpenseStatus = (typeof EXPENSE_STATUS)[number];
 export type StatusFilter = ExpenseStatus | "all";
 
-export type PeriodKey = "day" | "week" | "month" | "qtr" | "year" | "all";
+export type PeriodKey = "today" | "last7" | "last30" | "custom" | "all";
 export type CatCardMetric = "sum" | "count";
 
 export type Draft = {
   id?: string;
+
   expense_date: string;
   vendor: string;
   amount: string;
@@ -33,7 +33,6 @@ export type Draft = {
   // stored in DB as "Main / Sub"
   category: string;
 
-  // editor structure
   mainCategory: string;
   subCategory: string;
 
@@ -46,8 +45,8 @@ export type Draft = {
   receiptPreview: string;
   receiptFile?: File | null;
 
-  // DB field – status/payment (NO schema change)
   status: ExpenseStatus;
 };
 
-export type { DbExpense };
+// re-export as DbExpense for local usage
+export type DbExpense = DbExpenseBase;

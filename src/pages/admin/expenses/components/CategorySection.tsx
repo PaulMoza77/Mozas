@@ -1,7 +1,8 @@
 // src/pages/admin/expenses/components/CategorySection.tsx
 import { AlertTriangle } from "lucide-react";
 import type { CatCardMetric } from "../types";
-import { clsx, formatAgg } from "../utils";
+import clsx from "clsx";
+import { formatAgg } from "../utils";
 import { CategoryCard } from "./CategoryCard";
 
 type BaseCat = "Operational" | "Marketing" | "Employees" | "Miscellaneous";

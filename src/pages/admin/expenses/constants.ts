@@ -1,91 +1,69 @@
-// src/pages/admin/expenses/constants.ts
-import type { ExpenseStatus, PeriodKey, StatusFilter } from "./types";
-
-export const CATEGORY_TREE: {
-  personal: Record<string, string[]>;
-  business: Record<string, string[]>;
-} = {
-  personal: {
-    Lifestyle: ["Food", "Transport", "Shopping", "Health", "Travel", "Other"],
-    Home: ["Rent", "Utilities", "Internet", "Repairs", "Other"],
-    Family: ["Kids", "Gifts", "Other"],
-  },
-
-  // ✅ ONLY 4 base categories (as requested)
-  business: {
-    Operational: [
-      "Cazare",
-      "Combustibil",
-      "Mâncare",
-      "Parcare",
-      "Telefon",
-      "Transport",
-      "Consumabile",
-      "Chirie",
-      "Utilități",
-      "Echipamente",
-      "Mentenanță",
-      "Mașină chirie",
-      "Other",
-    ],
-    Marketing: ["Ads", "Influencers", "Content", "PR", "Posted", "TikTok", "Other"],
-    Employees: ["Salarii", "Comisioane", "Contractori", "Bonuri", "Other"],
-    Miscellaneous: [
-      "Contabilitate",
-      "Avocat",
-      "Taxe",
-      "Licențe",
-      "SaaS",
-      "Hosting",
-      "Domains",
-      "Tools",
-      "Other",
-    ],
-  },
-};
-
-export const BRAND_OPTIONS = ["Mozas", "Volocar", "GetSureDrive", "TDG", "Brandly", "Personal"];
+import type { ExpenseStatus } from "./types";
 
 export const BRAND_DISPLAY: Record<string, string> = {
-  Mozas: "TheMozas",
+  Mozas: "Mozas",
   Volocar: "Volocar",
   TDG: "TDG",
-  Brandly: "BRANDLY",
-  GetSureDrive: "GETSUREDRIVE",
+  Brandly: "Brandly",
+  GetSureDrive: "GetSureDrive",
   Personal: "Personal",
 };
 
-export const DASH_BRANDS = ["Mozas", "Volocar", "TDG", "Brandly", "GetSureDrive", "Personal"] as const;
+export const BRAND_OPTIONS = Object.keys(BRAND_DISPLAY);
 
-export const CURRENCY_OPTIONS = ["AED", "EUR", "USD", "RON"];
+export const CURRENCY_OPTIONS = ["AED", "EUR", "RON", "USD"] as const;
+export type Currency = (typeof CURRENCY_OPTIONS)[number];
 
-export const STATUS_OPTIONS: StatusFilter[] = [
-  "all",
-  "Platit",
-  "Urgent",
-  "In Asteptare",
-  "Neplatit",
-  "Preplatit",
-  "Anulat",
-];
+export const CATEGORY_TREE = {
+  business: {
+    Operational: [
+      "Combustibil",
+      "Parcari",
+      "Transport",
+      "Taxi",
+      "Avion",
+      "Cazare",
+      "Mentenanta",
+      "Service",
+      "Piese",
+      "Spalatorie",
+      "Amenzi",
+      "Asigurari",
+      "RCA",
+      "CASCO",
+      "Rovinieta",
+      "Taxe",
+      "Utilitati",
+      "Chirie",
+      "Contabilitate",
+      "Avocat",
+      "Comisioane",
+      "Altele",
+    ],
+    Marketing: ["Reclame", "Google Ads", "Meta Ads", "TikTok", "Influenceri", "PR", "Design", "Altele"],
+    Employees: ["Salarii", "Comisioane", "Bonusuri", "Contractori", "Altele"],
+    Miscellaneous: ["Software", "Abonamente", "Echipamente", "Cadouri", "Diverse", "Altele"],
+  },
+  personal: {
+    Personal: ["Mancare", "Transport", "Sanatate", "Chirie", "Utilitati", "Shopping", "Diverse"],
+  },
+} as const;
 
-export const STATUS_META: Record<
-  ExpenseStatus,
-  { label: string; pill: string; icon?: "urgent" }
-> = {
-  Platit: { label: "Plătit", pill: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  Urgent: { label: "Urgent", pill: "bg-rose-50 text-rose-700 ring-rose-200", icon: "urgent" },
-  "In Asteptare": { label: "În așteptare", pill: "bg-amber-50 text-amber-700 ring-amber-200" },
-  Neplatit: { label: "Neplătit", pill: "bg-slate-50 text-slate-700 ring-slate-200" },
-  Preplatit: { label: "Preplătit", pill: "bg-sky-50 text-sky-700 ring-sky-200" },
-  Anulat: { label: "Anulat", pill: "bg-zinc-50 text-zinc-600 ring-zinc-200" },
+type StatusTone = "neutral" | "success" | "warning" | "danger";
+
+export const STATUS_META: Record<ExpenseStatus, { label: string; tone: StatusTone }> = {
+  Platit: { label: "Plătit", tone: "success" },
+  Urgent: { label: "Urgent", tone: "danger" },
+  "In Asteptare": { label: "În așteptare", tone: "warning" },
+  Neplatit: { label: "Neplătit", tone: "neutral" },
+  Preplatit: { label: "Preplătit", tone: "success" },
+  Anulat: { label: "Anulat", tone: "neutral" },
 };
-
-export const PERIODS: Array<{ key: PeriodKey; label: string }> = [
-  { key: "day", label: "Zi" },
-  { key: "week", label: "Săpt." },
-  { key: "month", label: "Lună" },
-  { key: "qtr", label: "3 luni" },
-  { key: "year", label: "1 an" },
+// Period presets (used in TopAdminBar)
+export const PERIODS: Array<{ key: "today" | "last7" | "last30" | "custom" | "all"; label: string }> = [
+  { key: "today", label: "Today" },
+  { key: "last7", label: "Last 7 days" },
+  { key: "last30", label: "Last 30 days" },
+  { key: "custom", label: "Custom" },
   { key: "all", label: "All time" },
 ];

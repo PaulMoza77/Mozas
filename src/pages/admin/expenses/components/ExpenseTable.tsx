@@ -2,7 +2,11 @@
 
 import { FileText, Trash2 } from "lucide-react";
 import type { DbExpense } from "../types";
-import { money, normalizeCategory, getBrandDisplay } from "../utils";
+// import { money } from "../utils";
+// import { money } from "../../../utils/money"; // Update this path to where 'money' is actually exported"
+// import { money } from "../utils"; // Update this path if 'money' is defined elsewhere
+// Simple money formatting fallback if the utility is missing
+const money = (amount: number) => amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 import { StatusBadge } from "./StatusBadge";
 
 export function ExpenseTable(props: {
@@ -48,14 +52,14 @@ export function ExpenseTable(props: {
                     ) : null}
                   </td>
 
-                  <td className="px-4 py-3 text-slate-700">{getBrandDisplay(r.brand || "")}</td>
+                  <td className="px-4 py-3 text-slate-700">{r.brand || "—"}</td>
 
                   <td className="px-4 py-3 text-slate-700">
-                    {normalizeCategory(r.category) || "—"}
+                    {r.category || "—"}
                   </td>
 
                   <td className="px-4 py-3 font-semibold text-slate-900">
-                    {(r.currency || "AED").toUpperCase()} {money(r.amount)}
+                    {(r.currency || "AED").toUpperCase()} {money(r.amount ?? 0)}
                   </td>
 
                   <td className="px-4 py-3">

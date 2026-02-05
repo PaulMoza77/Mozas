@@ -1,11 +1,7 @@
-// src/pages/admin/expenses/components/modals/AiSuggestionBox.tsx
+// src/pages/admin/expenses/components/modal/AiSuggestionBox.tsx
+import type { Draft } from "../../types.ts";
 
-import type { Draft } from "../../types";
-
-export function AiSuggestionBox(props: {
-  editing: Draft;
-  onApply: () => void;
-}) {
+export function AiSuggestionBox(props: { editing: Draft; onApply: () => void }) {
   const { editing, onApply } = props;
   if (!editing.aiSuggestion) return null;
 

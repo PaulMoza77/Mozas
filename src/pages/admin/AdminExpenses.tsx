@@ -20,7 +20,7 @@ import { BRAND_DISPLAY, CATEGORY_TREE } from "./expenses/constants";
 import {
   buildCategory,
   parseISOToDate,
-  periodStart,
+  periodRange,
   splitCategory,
   sumByCurrency,
   todayISO,
@@ -34,18 +34,16 @@ const BASE_ORDER: BaseCat[] = ["Operational", "Marketing", "Employees", "Miscell
 function mapLegacyMainToBase(mainRaw: string): BaseCat | null {
   const m = String(mainRaw || "").trim();
 
-  // ✅ already new
   if (m === "Operational") return "Operational";
   if (m === "Marketing") return "Marketing";
   if (m === "Employees") return "Employees";
   if (m === "Miscellaneous") return "Miscellaneous";
 
-  // ✅ legacy -> new base
+  // legacy -> new
   if (m === "Payroll") return "Employees";
   if (m === "Legal & Admin") return "Miscellaneous";
   if (m === "Software") return "Miscellaneous";
 
-  // if empty/unknown
   if (!m) return null;
   return "Miscellaneous";
 }
@@ -53,7 +51,10 @@ function mapLegacyMainToBase(mainRaw: string): BaseCat | null {
 export default function AdminExpenses() {
   const { rows, loading, reload, upsertDb, deleteDb, removeLocal, insertMany } = useExpenses();
 
-  const [period, setPeriod] = useState<PeriodKey>("month");
+  // periods
+  const [period, setPeriod] = useState<PeriodKey>("last30");
+  const [customFrom, setCustomFrom] = useState<string>(todayISO());
+  const [customTo, setCustomTo] = useState<string>(todayISO());
 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -61,7 +62,7 @@ export default function AdminExpenses() {
   const [brandFilter, setBrandFilter] = useState<string>("all");
   const [urgentOnly, setUrgentOnly] = useState(false);
 
-  // ✅ NEW: base + sub filters
+  // base + sub filters
   const [baseCategory, setBaseCategory] = useState<BaseCat | "all">("all");
   const [subCategory, setSubCategory] = useState<string | "all">("all");
 
@@ -76,13 +77,14 @@ export default function AdminExpenses() {
   // -----------------------
   const base = useMemo(() => {
     const qq = q.trim().toLowerCase();
-    const start = periodStart(period);
+    const { start, end } = periodRange(period, customFrom, customTo);
 
     return rows.filter((r) => {
-      if (start) {
+      if (start || end) {
         const d = parseISOToDate(r.expense_date);
         if (!d) return false;
-        if (d < start) return false;
+        if (start && d < start) return false;
+        if (end && d > end) return false;
       }
 
       if (statusFilter !== "all") {
@@ -106,24 +108,22 @@ export default function AdminExpenses() {
 
       return hay.includes(qq);
     });
-  }, [rows, q, statusFilter, period]);
+  }, [rows, q, statusFilter, period, customFrom, customTo]);
 
   const scope = useMemo(() => {
     let out = base;
-    if (brandFilter !== "all") out = out.filter((r) => (r.brand || "") === brandFilter);
+    if (brandFilter !== "all") out = out.filter((r) => String(r.brand || "") === brandFilter);
     if (urgentOnly) out = out.filter((r) => (r.status as any) === "Urgent");
     return out;
   }, [base, brandFilter, urgentOnly]);
 
-  // ✅ derived base/sub from stored "Main / Sub"
   const filtered = useMemo(() => {
     let out = scope;
 
     if (baseCategory !== "all") {
       out = out.filter((r) => {
         const cat = splitCategory(r.category || "");
-        const b = mapLegacyMainToBase(cat.main);
-        return b === baseCategory;
+        return mapLegacyMainToBase(cat.main) === baseCategory;
       });
     }
 
@@ -172,7 +172,7 @@ export default function AdminExpenses() {
   }, [base]);
 
   // -----------------------
-  // Category UI data (base + sub buttons)
+  // Category UI data
   // -----------------------
   const availableBaseCats = useMemo(() => {
     const seen = new Set<BaseCat>();
@@ -181,24 +181,24 @@ export default function AdminExpenses() {
       const b = mapLegacyMainToBase(cat.main);
       if (b) seen.add(b);
     }
-    // keep stable order
     return BASE_ORDER.filter((b) => seen.has(b));
   }, [scope]);
 
   const availableSubCats = useMemo(() => {
-    // show subcats for selected base (or all base if baseCategory=all -> show none until choose)
     if (baseCategory === "all") return [];
 
     const set = new Set<string>();
+
     for (const r of scope) {
       const cat = splitCategory(r.category || "");
       const b = mapLegacyMainToBase(cat.main);
       if (b !== baseCategory) continue;
+
       const sub = String(cat.sub || "").trim();
       if (sub) set.add(sub);
     }
 
-    // also include from tree (nice consistent list)
+    // add from tree for consistency
     const treeList = CATEGORY_TREE.business[baseCategory] || [];
     for (const s of treeList) set.add(s);
 
@@ -206,7 +206,6 @@ export default function AdminExpenses() {
   }, [scope, baseCategory]);
 
   const subCards = useMemo(() => {
-    // cards = aggregate by subcategory for current base selection
     if (baseCategory === "all") return [];
 
     const map = new Map<
@@ -242,8 +241,6 @@ export default function AdminExpenses() {
   const toggleBrand = (b: string | "all") => {
     setBrandFilter((prev) => (prev === b ? "all" : b));
     setUrgentOnly(false);
-
-    // reset category filters when switching brand
     setBaseCategory("all");
     setSubCategory("all");
   };
@@ -381,11 +378,20 @@ export default function AdminExpenses() {
     brandFilter === "all" ? "All brands" : BRAND_DISPLAY[brandFilter] || brandFilter;
 
   const selectedCategoryLabel =
-    baseCategory === "all" ? "All categories" : baseCategory + (subCategory !== "all" ? ` / ${subCategory}` : "");
+    baseCategory === "all"
+      ? "All categories"
+      : baseCategory + (subCategory !== "all" ? ` / ${subCategory}` : "");
 
   return (
     <div className="space-y-5">
-      <TopAdminBar period={period} setPeriod={setPeriod} />
+      <TopAdminBar
+        period={period}
+        setPeriod={(p) => setPeriod(p)}
+        customFrom={customFrom}
+        setCustomFrom={setCustomFrom}
+        customTo={customTo}
+        setCustomTo={setCustomTo}
+      />
 
       <DashboardCards
         baseCount={base.length}
@@ -411,7 +417,7 @@ export default function AdminExpenses() {
         availableBaseCats={availableBaseCats}
         baseCategory={baseCategory}
         setBaseCategory={(b) => {
-          setBaseCategory(b);
+          setBaseCategory(b as any);
           setSubCategory("all");
         }}
         availableSubCats={availableSubCats}

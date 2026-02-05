@@ -1,12 +1,14 @@
 // src/pages/admin/expenses/components/modal/ExpenseEditorModal.tsx
 import React, { useMemo } from "react";
-import type { Draft, ExpenseStatus } from "../../types";
-import { EXPENSE_STATUS } from "../../types";
-import { BRAND_OPTIONS, CURRENCY_OPTIONS, CATEGORY_TREE, STATUS_META } from "../../constants";
-import { getBrandDisplay } from "../../utils";
+import type { Draft, ExpenseStatus } from "../../types.ts";
+import { EXPENSE_STATUS } from "../../types.ts";
+import { BRAND_DISPLAY, CATEGORY_TREE, STATUS_META } from "../../constants.ts";
+
 import { ModalShell } from "./ModalShell";
 import { AiSuggestionBox } from "./AiSuggestionBox";
 import { ReceiptPanel } from "./ReceiptPanel";
+
+const CURRENCY_OPTIONS = ["AED", "EUR", "RON", "USD"] as const;
 
 export function ExpenseEditorModal(props: {
   editorOpen: boolean;
@@ -22,15 +24,27 @@ export function ExpenseEditorModal(props: {
 
   if (!editorOpen || !editing) return null;
 
-  const isPersonal = editing.brand === "Personal";
-  const categoryRoot = isPersonal ? CATEGORY_TREE.personal : CATEGORY_TREE.business;
+  const brandOptions = useMemo(() => Object.keys(BRAND_DISPLAY), []);
 
-  const mainCategories = useMemo(() => Object.keys(categoryRoot), [categoryRoot]);
+  const categoryRoot = useMemo(() => {
+    const anyTree: any = CATEGORY_TREE as any;
+
+    // dacă ai personal în constants, îl folosim; altfel fallback la business
+    if (editing.brand === "Personal" && anyTree.personal) return anyTree.personal;
+
+    // business poate fi direct obiect sau sub-cheie business
+    if (anyTree.business) return anyTree.business;
+
+    // fallback safe
+    return {};
+  }, [editing.brand]);
+
+  const mainCategories = useMemo(() => Object.keys(categoryRoot || {}), [categoryRoot]);
 
   const subCategories = useMemo(() => {
     const main = String(editing.mainCategory || "").trim();
     if (!main) return [];
-    const list = (categoryRoot as any)[main];
+    const list = (categoryRoot as any)?.[main];
     return Array.isArray(list) ? list : [];
   }, [editing.mainCategory, categoryRoot]);
 
@@ -40,12 +54,12 @@ export function ExpenseEditorModal(props: {
       subtitle="Categoria este obligatorie"
       onClose={closeEditor}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
         {/* LEFT */}
         <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-semibold mb-1">Date</p>
+              <p className="mb-1 text-xs font-semibold">Date</p>
               <input
                 type="date"
                 value={editing.expense_date}
@@ -55,7 +69,7 @@ export function ExpenseEditorModal(props: {
             </div>
 
             <div>
-              <p className="text-xs font-semibold mb-1">Brand</p>
+              <p className="mb-1 text-xs font-semibold">Brand</p>
               <select
                 value={editing.brand}
                 onChange={(e) =>
@@ -68,9 +82,9 @@ export function ExpenseEditorModal(props: {
                 }
                 className="w-full rounded-2xl border px-3 py-2 text-sm"
               >
-                {BRAND_OPTIONS.map((b) => (
+                {brandOptions.map((b) => (
                   <option key={b} value={b}>
-                    {getBrandDisplay(b)}
+                    {BRAND_DISPLAY[b] ?? b}
                   </option>
                 ))}
               </select>
@@ -78,7 +92,7 @@ export function ExpenseEditorModal(props: {
           </div>
 
           <div>
-            <p className="text-xs font-semibold mb-1">Vendor</p>
+            <p className="mb-1 text-xs font-semibold">Vendor</p>
             <input
               value={editing.vendor}
               onChange={(e) => setEditing({ ...editing, vendor: e.target.value })}
@@ -86,9 +100,9 @@ export function ExpenseEditorModal(props: {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <p className="text-xs font-semibold mb-1">Amount</p>
+              <p className="mb-1 text-xs font-semibold">Amount</p>
               <input
                 value={editing.amount}
                 onChange={(e) => setEditing({ ...editing, amount: e.target.value })}
@@ -97,7 +111,7 @@ export function ExpenseEditorModal(props: {
             </div>
 
             <div>
-              <p className="text-xs font-semibold mb-1">Currency</p>
+              <p className="mb-1 text-xs font-semibold">Currency</p>
               <select
                 value={editing.currency}
                 onChange={(e) => setEditing({ ...editing, currency: e.target.value })}
@@ -112,15 +126,17 @@ export function ExpenseEditorModal(props: {
             </div>
 
             <div>
-              <p className="text-xs font-semibold mb-1">Status</p>
+              <p className="mb-1 text-xs font-semibold">Status</p>
               <select
                 value={editing.status}
-                onChange={(e) => setEditing({ ...editing, status: e.target.value as ExpenseStatus })}
+                onChange={(e) =>
+                  setEditing({ ...editing, status: e.target.value as ExpenseStatus })
+                }
                 className="w-full rounded-2xl border px-3 py-2 text-sm"
               >
                 {EXPENSE_STATUS.map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_META[s].label}
+                    {(STATUS_META as any)?.[s]?.label ?? s}
                   </option>
                 ))}
               </select>
@@ -128,9 +144,9 @@ export function ExpenseEditorModal(props: {
           </div>
 
           {/* CATEGORY */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-semibold mb-1">Categorie *</p>
+              <p className="mb-1 text-xs font-semibold">Categorie *</p>
               <select
                 value={editing.mainCategory}
                 onChange={(e) =>
@@ -152,7 +168,7 @@ export function ExpenseEditorModal(props: {
             </div>
 
             <div>
-              <p className="text-xs font-semibold mb-1">Subcategorie *</p>
+              <p className="mb-1 text-xs font-semibold">Subcategorie *</p>
               <select
                 value={editing.subCategory}
                 onChange={(e) => setEditing({ ...editing, subCategory: e.target.value })}
@@ -160,7 +176,7 @@ export function ExpenseEditorModal(props: {
                 className="w-full rounded-2xl border px-3 py-2 text-sm disabled:opacity-50"
               >
                 <option value="">Select subcategory</option>
-                {subCategories.map((s) => (
+                {subCategories.map((s: string) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
@@ -171,17 +187,18 @@ export function ExpenseEditorModal(props: {
 
           <AiSuggestionBox
             editing={editing}
-            onApply={() =>
+            onApply={() => {
+              if (!editing.aiSuggestion) return;
               setEditing({
                 ...editing,
-                mainCategory: editing.aiSuggestion!.main,
-                subCategory: editing.aiSuggestion!.sub,
-              })
-            }
+                mainCategory: editing.aiSuggestion.main,
+                subCategory: editing.aiSuggestion.sub,
+              });
+            }}
           />
 
           <div>
-            <p className="text-xs font-semibold mb-1">Note</p>
+            <p className="mb-1 text-xs font-semibold">Note</p>
             <textarea
               value={editing.note}
               onChange={(e) => setEditing({ ...editing, note: e.target.value })}

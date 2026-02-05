@@ -2,8 +2,10 @@
 
 import { Search, X } from "lucide-react";
 import type { StatusFilter } from "../types";
-import { BRAND_OPTIONS, STATUS_OPTIONS, STATUS_META } from "../constants";
-import { getBrandDisplay } from "../utils";
+import { BRAND_OPTIONS, STATUS_META } from "../constants";
+
+// ✅ no need for STATUS_OPTIONS export; derive it safely here
+const STATUS_OPTIONS: Array<StatusFilter> = ["all", ...Object.keys(STATUS_META)] as Array<StatusFilter>;
 
 export function FiltersRow(props: {
   q: string;
@@ -57,8 +59,9 @@ export function FiltersRow(props: {
         <select
           value={brandFilter}
           onChange={(e) => {
-            setBrandFilter(e.target.value);
-            onBrandChange?.(e.target.value);
+            const v = e.target.value;
+            setBrandFilter(v);
+            onBrandChange?.(v);
           }}
           className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
           title="Brand filter"
@@ -66,7 +69,7 @@ export function FiltersRow(props: {
           <option value="all">All brands</option>
           {BRAND_OPTIONS.map((b) => (
             <option key={b} value={b}>
-              {getBrandDisplay(b)}
+              {b}
             </option>
           ))}
         </select>

@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import type { CatCardMetric } from "../types";
-import { clsx } from "../utils";
+import clsx from "clsx";
 
 export function CategoryCard({
   title,
