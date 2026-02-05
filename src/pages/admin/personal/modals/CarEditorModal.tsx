@@ -1,9 +1,10 @@
+// src/pages/admin/personal/modals/CarEditorModal.tsx
 import { useEffect, useMemo, useState } from "react";
 import { X, Upload, Save } from "lucide-react";
 
-import { supabase } from "../../../../lib/supabase";
 import { fetchCars, upsertCar } from "../../../../lib/garage/api";
 import type { GarageCarRow } from "../../../../lib/garage/types";
+import { uploadGaragePhoto } from "../../../../lib/garage/storage";
 
 function clsx(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -17,21 +18,9 @@ function todayISO() {
   return `${y}-${m}-${dd}`;
 }
 
-async function uploadCarPhoto(file: File, carId: string): Promise<string> {
-  const userRes = await supabase.auth.getUser();
-  const uid = userRes.data.user?.id;
-  if (!uid) throw new Error("Not authenticated.");
-
-  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `${uid}/${carId}/${Date.now()}_${safe}`;
-
-  const up = await supabase.storage.from("garage-photos").upload(path, file, {
-    upsert: true,
-    contentType: file.type || "image/jpeg",
-  });
-  if (up.error) throw up.error;
-
-  return path; // store path, not public url (bucket private)
+function toNumberSafe(v: string) {
+  const n = Number(String(v || "").trim().replace(",", "."));
+  return n;
 }
 
 export function CarEditorModal(props: {
@@ -50,10 +39,13 @@ export function CarEditorModal(props: {
   const [purchaseCurrency, setPurchaseCurrency] = useState("EUR");
   const [purchaseKm, setPurchaseKm] = useState("");
   const [purchaseDate, setPurchaseDate] = useState<string>(todayISO());
+
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [localPreview, setLocalPreview] = useState<string>("");
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       if (!open) return;
 
@@ -64,6 +56,7 @@ export function CarEditorModal(props: {
       setPurchaseKm("");
       setPurchaseDate(todayISO());
       setPhotoFile(null);
+      setLocalPreview("");
 
       if (!carId) return;
 
@@ -72,13 +65,12 @@ export function CarEditorModal(props: {
         const all = await fetchCars();
         const found = all.find((c) => c.id === carId) || null;
         if (!found) return;
-
         if (cancelled) return;
 
         setName(found.name || "");
-        setPurchasePrice(String(found.purchase_price ?? ""));
+        setPurchasePrice(found.purchase_price == null ? "" : String(found.purchase_price));
         setPurchaseCurrency(found.purchase_currency || "EUR");
-        setPurchaseKm(String(found.purchase_km ?? ""));
+        setPurchaseKm(found.purchase_km == null ? "" : String(found.purchase_km));
         setPurchaseDate(found.purchase_date || todayISO());
       } finally {
         if (!cancelled) setLoading(false);
@@ -90,15 +82,29 @@ export function CarEditorModal(props: {
     };
   }, [open, carId]);
 
+  useEffect(() => {
+    if (!photoFile) {
+      setLocalPreview("");
+      return;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setLocalPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
+
+  const priceNum = useMemo(() => toNumberSafe(purchasePrice), [purchasePrice]);
+  const kmNum = useMemo(() => toNumberSafe(purchaseKm), [purchaseKm]);
+
   const canSave = useMemo(() => {
     if (busy) return false;
     if (!name.trim()) return false;
-    const p = Number(purchasePrice);
-    const km = Number(purchaseKm);
-    if (!Number.isFinite(p) || p < 0) return false;
-    if (!Number.isFinite(km) || km < 0) return false;
+
+    // allow empty -> treat as 0? (eu prefer obligatoriu numeric)
+    if (!Number.isFinite(priceNum) || priceNum < 0) return false;
+    if (!Number.isFinite(kmNum) || kmNum < 0) return false;
+
     return true;
-  }, [busy, name, purchasePrice, purchaseKm]);
+  }, [busy, name, priceNum, kmNum]);
 
   if (!open) return null;
 
@@ -115,6 +121,7 @@ export function CarEditorModal(props: {
             onClick={onClose}
             className="inline-flex h-10 w-10 items-center justify-center rounded-2xl hover:bg-slate-50"
             disabled={busy}
+            aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
@@ -124,6 +131,14 @@ export function CarEditorModal(props: {
           {loading ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
               Loading…
+            </div>
+          ) : null}
+
+          {localPreview ? (
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">
+              <div className="aspect-[16/9] w-full">
+                <img src={localPreview} alt="Preview" className="h-full w-full object-cover" />
+              </div>
             </div>
           ) : null}
 
@@ -146,6 +161,7 @@ export function CarEditorModal(props: {
                 onChange={(e) => setPurchasePrice(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-slate-200"
                 placeholder="ex: 76500"
+                inputMode="decimal"
                 disabled={busy}
               />
             </label>
@@ -168,6 +184,7 @@ export function CarEditorModal(props: {
                 onChange={(e) => setPurchaseKm(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-slate-200"
                 placeholder="ex: 70000"
+                inputMode="numeric"
                 disabled={busy}
               />
             </label>
@@ -196,7 +213,7 @@ export function CarEditorModal(props: {
                 />
               </div>
               <div className="mt-1 text-xs text-slate-500">
-                Bucket private. Se salvează path în DB (signed url se generează la afișare).
+                Bucket private: <span className="font-semibold">garage-private</span>. Se salvează doar path în DB.
               </div>
             </label>
           </div>
@@ -216,21 +233,23 @@ export function CarEditorModal(props: {
             type="button"
             disabled={!canSave}
             onClick={async () => {
+              if (!canSave) return;
+
               setBusy(true);
               try {
-                // 1) upsert car first (need id for photo path)
+                // 1) upsert car first (need id)
                 const baseSaved = await upsertCar({
                   ...(carId ? { id: carId } : {}),
                   name: name.trim(),
-                  purchase_price: Number(purchasePrice),
-                  purchase_currency: purchaseCurrency.trim() || "EUR",
-                  purchase_km: Number(purchaseKm),
+                  purchase_price: priceNum,
+                  purchase_currency: (purchaseCurrency || "EUR").trim().toUpperCase(),
+                  purchase_km: kmNum,
                   purchase_date: purchaseDate || null,
                 } as any);
 
-                // 2) upload photo (optional) and update car
+                // 2) upload photo (optional) and update car.photo_url (path)
                 if (photoFile) {
-                  const path = await uploadCarPhoto(photoFile, baseSaved.id);
+                  const path = await uploadGaragePhoto(photoFile, baseSaved.id);
                   const saved2 = await upsertCar({ id: baseSaved.id, photo_url: path } as any);
                   onSaved(saved2);
                 } else {
