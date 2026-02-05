@@ -14,19 +14,11 @@ import { useExpenses } from "./expenses/hooks/useExpenses";
 import { useVendorCategorySuggest } from "./expenses/hooks/useVendorCategorySuggest";
 import { useAiMock } from "./expenses/hooks/useAiMock";
 
-import type {
-  CatCardMetric,
-  Draft,
-  PeriodKey,
-  StatusFilter,
-  DbExpense,
-} from "./expenses/types";
-
-import { BRAND_DISPLAY } from "./expenses/constants";
+import type { CatCardMetric, Draft, PeriodKey, StatusFilter, DbExpense } from "./expenses/types";
+import { BRAND_DISPLAY, CATEGORY_TREE } from "./expenses/constants";
 
 import {
   buildCategory,
-  normalizeCategory,
   parseISOToDate,
   periodStart,
   splitCategory,
@@ -36,9 +28,30 @@ import {
 
 import { deleteReceipt, uploadReceipt } from "./expenses/storage";
 
+type BaseCat = "Operational" | "Marketing" | "Employees" | "Miscellaneous";
+const BASE_ORDER: BaseCat[] = ["Operational", "Marketing", "Employees", "Miscellaneous"];
+
+function mapLegacyMainToBase(mainRaw: string): BaseCat | null {
+  const m = String(mainRaw || "").trim();
+
+  // ✅ already new
+  if (m === "Operational") return "Operational";
+  if (m === "Marketing") return "Marketing";
+  if (m === "Employees") return "Employees";
+  if (m === "Miscellaneous") return "Miscellaneous";
+
+  // ✅ legacy -> new base
+  if (m === "Payroll") return "Employees";
+  if (m === "Legal & Admin") return "Miscellaneous";
+  if (m === "Software") return "Miscellaneous";
+
+  // if empty/unknown
+  if (!m) return null;
+  return "Miscellaneous";
+}
+
 export default function AdminExpenses() {
-  const { rows, loading, reload, upsertDb, deleteDb, removeLocal, insertMany } =
-    useExpenses();
+  const { rows, loading, reload, upsertDb, deleteDb, removeLocal, insertMany } = useExpenses();
 
   const [period, setPeriod] = useState<PeriodKey>("month");
 
@@ -46,8 +59,11 @@ export default function AdminExpenses() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const [brandFilter, setBrandFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [urgentOnly, setUrgentOnly] = useState(false);
+
+  // ✅ NEW: base + sub filters
+  const [baseCategory, setBaseCategory] = useState<BaseCat | "all">("all");
+  const [subCategory, setSubCategory] = useState<string | "all">("all");
 
   const [catMetric, setCatMetric] = useState<CatCardMetric>("sum");
 
@@ -99,10 +115,27 @@ export default function AdminExpenses() {
     return out;
   }, [base, brandFilter, urgentOnly]);
 
+  // ✅ derived base/sub from stored "Main / Sub"
   const filtered = useMemo(() => {
-    if (categoryFilter === "all") return scope;
-    return scope.filter((r) => normalizeCategory(r.category) === categoryFilter);
-  }, [scope, categoryFilter]);
+    let out = scope;
+
+    if (baseCategory !== "all") {
+      out = out.filter((r) => {
+        const cat = splitCategory(r.category || "");
+        const b = mapLegacyMainToBase(cat.main);
+        return b === baseCategory;
+      });
+    }
+
+    if (subCategory !== "all") {
+      out = out.filter((r) => {
+        const cat = splitCategory(r.category || "");
+        return String(cat.sub || "").trim() === subCategory;
+      });
+    }
+
+    return out;
+  }, [scope, baseCategory, subCategory]);
 
   // -----------------------
   // Dashboard aggregates (always from base)
@@ -138,29 +171,59 @@ export default function AdminExpenses() {
     return { count: urgentRows.length, sum: sumByCurrency(urgentRows) };
   }, [base]);
 
-  const categoryOptions = useMemo(() => {
-    const set = new Set<string>();
+  // -----------------------
+  // Category UI data (base + sub buttons)
+  // -----------------------
+  const availableBaseCats = useMemo(() => {
+    const seen = new Set<BaseCat>();
     for (const r of scope) {
-      const c = normalizeCategory(r.category);
-      if (c) set.add(c);
+      const cat = splitCategory(r.category || "");
+      const b = mapLegacyMainToBase(cat.main);
+      if (b) seen.add(b);
     }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    // keep stable order
+    return BASE_ORDER.filter((b) => seen.has(b));
   }, [scope]);
 
-  const topCategories = useMemo(() => {
+  const availableSubCats = useMemo(() => {
+    // show subcats for selected base (or all base if baseCategory=all -> show none until choose)
+    if (baseCategory === "all") return [];
+
+    const set = new Set<string>();
+    for (const r of scope) {
+      const cat = splitCategory(r.category || "");
+      const b = mapLegacyMainToBase(cat.main);
+      if (b !== baseCategory) continue;
+      const sub = String(cat.sub || "").trim();
+      if (sub) set.add(sub);
+    }
+
+    // also include from tree (nice consistent list)
+    const treeList = CATEGORY_TREE.business[baseCategory] || [];
+    for (const s of treeList) set.add(s);
+
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [scope, baseCategory]);
+
+  const subCards = useMemo(() => {
+    // cards = aggregate by subcategory for current base selection
+    if (baseCategory === "all") return [];
+
     const map = new Map<
       string,
       { sumByCur: Record<string, number>; count: number; totalNumeric: number }
     >();
 
     for (const r of scope) {
-      const c = normalizeCategory(r.category);
-      if (!c) continue;
+      const cat = splitCategory(r.category || "");
+      const b = mapLegacyMainToBase(cat.main);
+      if (b !== baseCategory) continue;
 
+      const sub = String(cat.sub || "").trim() || "Other";
       const cur = (r.currency || "AED").toUpperCase();
       const amt = Number(r.amount);
 
-      const entry = map.get(c) || { sumByCur: {}, count: 0, totalNumeric: 0 };
+      const entry = map.get(sub) || { sumByCur: {}, count: 0, totalNumeric: 0 };
 
       if (Number.isFinite(amt)) {
         entry.sumByCur[cur] = (entry.sumByCur[cur] || 0) + amt;
@@ -168,21 +231,21 @@ export default function AdminExpenses() {
       }
       entry.count += 1;
 
-      map.set(c, entry);
+      map.set(sub, entry);
     }
 
-    const arr = Array.from(map.entries()).map(([category, v]) => ({ category, ...v }));
+    const arr = Array.from(map.entries()).map(([sub, v]) => ({ sub, ...v }));
     arr.sort((a, b) => b.totalNumeric - a.totalNumeric);
-    return arr.slice(0, 6);
-  }, [scope]);
+    return arr.slice(0, 12);
+  }, [scope, baseCategory]);
 
   const toggleBrand = (b: string | "all") => {
-    setCategoryFilter("all");
     setBrandFilter((prev) => (prev === b ? "all" : b));
-  };
+    setUrgentOnly(false);
 
-  const toggleCategory = (c: string) => {
-    setCategoryFilter((prev) => (prev === c ? "all" : c));
+    // reset category filters when switching brand
+    setBaseCategory("all");
+    setSubCategory("all");
   };
 
   // -----------------------
@@ -244,7 +307,6 @@ export default function AdminExpenses() {
     setEditing({ ...editing, receiptFile: file, receiptPreview: preview });
   };
 
-  // auto-suggest vendor category + AI mock
   useVendorCategorySuggest({ editorOpen, editing, setEditing, rows });
   useAiMock({ editorOpen, editing, setEditing });
 
@@ -259,8 +321,7 @@ export default function AdminExpenses() {
 
     const amountNum =
       editing.amount.trim() === "" ? null : Number(editing.amount.replace(",", "."));
-    const vatNum =
-      editing.vat.trim() === "" ? null : Number(editing.vat.replace(",", "."));
+    const vatNum = editing.vat.trim() === "" ? null : Number(editing.vat.replace(",", "."));
 
     if (amountNum != null && !Number.isFinite(amountNum)) return alert("Amount invalid.");
     if (vatNum != null && !Number.isFinite(vatNum)) return alert("VAT invalid.");
@@ -305,7 +366,6 @@ export default function AdminExpenses() {
     const ok = window.confirm("Delete this expense?");
     if (!ok) return;
 
-    // optimistic
     removeLocal(r.id);
 
     try {
@@ -321,7 +381,7 @@ export default function AdminExpenses() {
     brandFilter === "all" ? "All brands" : BRAND_DISPLAY[brandFilter] || brandFilter;
 
   const selectedCategoryLabel =
-    categoryFilter === "all" ? "All categories" : categoryFilter;
+    baseCategory === "all" ? "All categories" : baseCategory + (subCategory !== "all" ? ` / ${subCategory}` : "");
 
   return (
     <div className="space-y-5">
@@ -333,7 +393,10 @@ export default function AdminExpenses() {
         urgentOnly={urgentOnly}
         setUrgentOnly={setUrgentOnly}
         toggleBrand={toggleBrand}
-        setCategoryFilter={setCategoryFilter}
+        setCategoryFilter={() => {
+          setBaseCategory("all");
+          setSubCategory("all");
+        }}
         dashboardTotal={dashboard.total}
         dashboardByBrand={dashboard.byBrand}
         urgentAgg={urgentAgg}
@@ -343,13 +406,18 @@ export default function AdminExpenses() {
         selectedBrandLabel={selectedBrandLabel}
         selectedCategoryLabel={selectedCategoryLabel}
         urgentOnly={urgentOnly}
-        categoryFilter={categoryFilter}
-        setCategoryFilter={setCategoryFilter}
-        toggleCategory={toggleCategory}
-        categoryOptions={categoryOptions}
-        topCategories={topCategories}
         catMetric={catMetric}
         setCatMetric={setCatMetric}
+        availableBaseCats={availableBaseCats}
+        baseCategory={baseCategory}
+        setBaseCategory={(b) => {
+          setBaseCategory(b);
+          setSubCategory("all");
+        }}
+        availableSubCats={availableSubCats}
+        subCategory={subCategory}
+        setSubCategory={setSubCategory}
+        subCards={subCards}
       />
 
       {/* Actions row */}
@@ -360,7 +428,6 @@ export default function AdminExpenses() {
           currency="AED"
           status="Neplatit"
           onImport={async (payloads) => {
-            // Map ImportExpensePayload[] to Partial<DbExpense>[] and set source to "manual"
             const dbPayloads = payloads.map((p) => ({
               ...p,
               source: "manual" as const,
@@ -386,7 +453,8 @@ export default function AdminExpenses() {
         brandFilter={brandFilter}
         setBrandFilter={(v) => {
           setUrgentOnly(false);
-          setCategoryFilter("all");
+          setBaseCategory("all");
+          setSubCategory("all");
           setBrandFilter(v);
         }}
         statusFilter={statusFilter}

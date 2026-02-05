@@ -10,21 +10,37 @@ export const CATEGORY_TREE: {
     Home: ["Rent", "Utilities", "Internet", "Repairs", "Other"],
     Family: ["Kids", "Gifts", "Other"],
   },
+
+  // ✅ ONLY 4 base categories (as requested)
   business: {
     Operational: [
+      "Cazare",
       "Combustibil",
+      "Mâncare",
+      "Parcare",
+      "Telefon",
       "Transport",
       "Consumabile",
       "Chirie",
-      "Utilitati",
+      "Utilități",
       "Echipamente",
-      "Mentenanta",
+      "Mentenanță",
+      "Mașină chirie",
       "Other",
     ],
-    Marketing: ["Ads", "Influencers", "Content", "PR", "Other"],
-    "Legal & Admin": ["Contabilitate", "Avocat", "Taxe", "Licente", "Other"],
-    Software: ["SaaS", "Hosting", "Domains", "Tools", "Other"],
-    Payroll: ["Salarii", "Comisioane", "Contractori", "Other"],
+    Marketing: ["Ads", "Influencers", "Content", "PR", "Posted", "TikTok", "Other"],
+    Employees: ["Salarii", "Comisioane", "Contractori", "Bonuri", "Other"],
+    Miscellaneous: [
+      "Contabilitate",
+      "Avocat",
+      "Taxe",
+      "Licențe",
+      "SaaS",
+      "Hosting",
+      "Domains",
+      "Tools",
+      "Other",
+    ],
   },
 };
 

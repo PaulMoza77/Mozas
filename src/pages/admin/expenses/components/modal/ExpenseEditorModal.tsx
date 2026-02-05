@@ -1,13 +1,8 @@
-// src/pages/admin/expenses/components/modals/ExpenseEditorModal.tsx
+// src/pages/admin/expenses/components/modal/ExpenseEditorModal.tsx
 import React, { useMemo } from "react";
 import type { Draft, ExpenseStatus } from "../../types";
 import { EXPENSE_STATUS } from "../../types";
-import {
-  BRAND_OPTIONS,
-  CURRENCY_OPTIONS,
-  CATEGORY_TREE,
-  STATUS_META,
-} from "../../constants";
+import { BRAND_OPTIONS, CURRENCY_OPTIONS, CATEGORY_TREE, STATUS_META } from "../../constants";
 import { getBrandDisplay } from "../../utils";
 import { ModalShell } from "./ModalShell";
 import { AiSuggestionBox } from "./AiSuggestionBox";
@@ -25,17 +20,19 @@ export function ExpenseEditorModal(props: {
 }) {
   const { editorOpen, editing, setEditing, saving, closeEditor, onPickReceipt, onSave } = props;
 
-  const isPersonal = editing?.brand === "Personal";
+  if (!editorOpen || !editing) return null;
+
+  const isPersonal = editing.brand === "Personal";
   const categoryRoot = isPersonal ? CATEGORY_TREE.personal : CATEGORY_TREE.business;
 
   const mainCategories = useMemo(() => Object.keys(categoryRoot), [categoryRoot]);
-  const subCategories = useMemo(() => {
-    if (!editing?.mainCategory) return [];
-    const list = categoryRoot[editing.mainCategory];
-    return Array.isArray(list) ? list : [];
-  }, [editing?.mainCategory, categoryRoot]);
 
-  if (!editorOpen || !editing) return null;
+  const subCategories = useMemo(() => {
+    const main = String(editing.mainCategory || "").trim();
+    if (!main) return [];
+    const list = (categoryRoot as any)[main];
+    return Array.isArray(list) ? list : [];
+  }, [editing.mainCategory, categoryRoot]);
 
   return (
     <ModalShell
@@ -118,9 +115,7 @@ export function ExpenseEditorModal(props: {
               <p className="text-xs font-semibold mb-1">Status</p>
               <select
                 value={editing.status}
-                onChange={(e) =>
-                  setEditing({ ...editing, status: e.target.value as ExpenseStatus })
-                }
+                onChange={(e) => setEditing({ ...editing, status: e.target.value as ExpenseStatus })}
                 className="w-full rounded-2xl border px-3 py-2 text-sm"
               >
                 {EXPENSE_STATUS.map((s) => (
