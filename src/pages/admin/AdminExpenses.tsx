@@ -31,7 +31,7 @@ import { deleteReceipt, uploadReceipt } from "./expenses/storage";
 type BaseCat = "Operational" | "Marketing" | "Employees" | "Miscellaneous";
 const BASE_ORDER: BaseCat[] = ["Operational", "Marketing", "Employees", "Miscellaneous"];
 
-// ✅ aici definim brandurile BUSINESS (fara Personal)
+// ✅ branduri business (fără Personal)
 const BUSINESS_BRANDS = ["Mozas", "Volocar", "TDG", "Brandly", "GetSureDrive"] as const;
 type BusinessBrand = (typeof BUSINESS_BRANDS)[number];
 
@@ -90,8 +90,9 @@ export default function AdminExpenses(props: { mode?: "business" | "personal" })
     const { start, end } = periodRange(period, customFrom, customTo);
 
     return rows.filter((r) => {
-      // ✅ scoatem Personal din pagina Expenses (business)
       const b = String(r.brand || "");
+
+      // ✅ scoatem Personal din business
       if (mode === "business" && b === "Personal") return false;
       if (mode === "personal" && b !== "Personal") return false;
 
@@ -128,7 +129,6 @@ export default function AdminExpenses(props: { mode?: "business" | "personal" })
   const scope = useMemo(() => {
     let out = base;
 
-    // brand filter (doar in business; in personal e redundant)
     if (mode === "business" && brandFilter !== "all") {
       out = out.filter((r) => String(r.brand || "") === brandFilter);
     }
@@ -163,7 +163,6 @@ export default function AdminExpenses(props: { mode?: "business" | "personal" })
   const dashboard = useMemo(() => {
     const total = sumByCurrency(base);
 
-    // ✅ fara Personal aici (in business)
     const byBrand: Record<string, Record<string, number>> = {};
     if (mode === "business") {
       for (const b of BUSINESS_BRANDS) byBrand[b] = {};
@@ -211,7 +210,6 @@ export default function AdminExpenses(props: { mode?: "business" | "personal" })
     if (baseCategory === "all") return [];
 
     const set = new Set<string>();
-
     for (const r of scope) {
       const cat = splitCategory(r.category || "");
       const b = mapLegacyMainToBase(cat.main);
@@ -230,10 +228,7 @@ export default function AdminExpenses(props: { mode?: "business" | "personal" })
   const subCards = useMemo(() => {
     if (baseCategory === "all") return [];
 
-    const map = new Map<
-      string,
-      { sumByCur: Record<string, number>; count: number; totalNumeric: number }
-    >();
+    const map = new Map<string, { sumByCur: Record<string, number>; count: number; totalNumeric: number }>();
 
     for (const r of scope) {
       const cat = splitCategory(r.category || "");
@@ -260,13 +255,22 @@ export default function AdminExpenses(props: { mode?: "business" | "personal" })
     return arr.slice(0, 12);
   }, [scope, baseCategory]);
 
+  const resetCategoryFilter = () => {
+    setBaseCategory("all");
+    setSubCategory("all");
+  };
+
   const toggleBrand = (b: string | "all") => {
     if (mode !== "business") return;
     setBrandFilter((prev) => (prev === b ? "all" : b));
     setUrgentOnly(false);
-    setBaseCategory("all");
-    setSubCategory("all");
+    resetCategoryFilter();
   };
+
+  // ✅ brands list pentru carduri (AICI era problema: trimiteai [])
+  const brandsForCards = useMemo<string[]>(() => {
+    return mode === "business" ? [...BUSINESS_BRANDS] : ["Personal"];
+  }, [mode]);
 
   // -----------------------
   // Editor open/close
@@ -340,8 +344,7 @@ export default function AdminExpenses(props: { mode?: "business" | "personal" })
     const expense_date = editing.expense_date || null;
     const vendor = editing.vendor.trim() || null;
 
-    const amountNum =
-      editing.amount.trim() === "" ? null : Number(editing.amount.replace(",", "."));
+    const amountNum = editing.amount.trim() === "" ? null : Number(editing.amount.replace(",", "."));
     const vatNum = editing.vat.trim() === "" ? null : Number(editing.vat.replace(",", "."));
 
     if (amountNum != null && !Number.isFinite(amountNum)) return alert("Amount invalid.");
@@ -427,13 +430,12 @@ export default function AdminExpenses(props: { mode?: "business" | "personal" })
         urgentOnly={urgentOnly}
         setUrgentOnly={setUrgentOnly}
         toggleBrand={toggleBrand}
-        setCategoryFilter={() => {
-          setBaseCategory("all");
-          setSubCategory("all");
-        } }
+        resetCategoryFilter={resetCategoryFilter}
         dashboardTotal={dashboard.total}
         dashboardByBrand={dashboard.byBrand}
-        urgentAgg={urgentAgg} brands={[]}      />
+        urgentAgg={urgentAgg}
+        brands={brandsForCards}
+      />
 
       <CategorySection
         selectedBrandLabel={selectedBrandLabel}
@@ -457,7 +459,7 @@ export default function AdminExpenses(props: { mode?: "business" | "personal" })
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
         <ImportXlsxButton
           year={new Date().getFullYear()}
-          brand={mode === "personal" ? "Personal" : (brandFilter !== "all" ? brandFilter : "Volocar")}
+          brand={mode === "personal" ? "Personal" : (brandFilter !== "all" ? brandFilter : "Mozas")}
           currency="AED"
           status="Neplatit"
           onImport={async (payloads) => {
@@ -487,8 +489,7 @@ export default function AdminExpenses(props: { mode?: "business" | "personal" })
         brandFilter={mode === "business" ? brandFilter : "Personal"}
         setBrandFilter={(v) => {
           setUrgentOnly(false);
-          setBaseCategory("all");
-          setSubCategory("all");
+          resetCategoryFilter();
           if (mode === "business") setBrandFilter(v);
         }}
         statusFilter={statusFilter}

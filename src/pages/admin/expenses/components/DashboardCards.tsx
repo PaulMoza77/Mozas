@@ -9,14 +9,16 @@ export function DashboardCards(props: {
   urgentOnly: boolean;
   setUrgentOnly: (v: boolean | ((p: boolean) => boolean)) => void;
   toggleBrand: (b: string | "all") => void;
-  setCategoryFilter: (v: string) => void;
+
+  // ✅ fix: e reset, nu set cu string
+  resetCategoryFilter: () => void;
 
   dashboardTotal: Record<string, number>;
   dashboardByBrand: Record<string, Record<string, number>>;
 
   urgentAgg: { count: number; sum: Record<string, number> };
 
-  // ✅ NEW
+  // ✅ lista branduri care trebuie afișată
   brands: string[];
 }) {
   const {
@@ -25,7 +27,7 @@ export function DashboardCards(props: {
     urgentOnly,
     setUrgentOnly,
     toggleBrand,
-    setCategoryFilter,
+    resetCategoryFilter,
     dashboardTotal,
     dashboardByBrand,
     urgentAgg,
@@ -34,7 +36,7 @@ export function DashboardCards(props: {
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 sm:p-6">
-      {/* ✅ max 3 / rand */}
+      {/* ✅ 3 pe rand, egale */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {/* Total */}
         <button
@@ -42,9 +44,10 @@ export function DashboardCards(props: {
           onClick={() => {
             setUrgentOnly(false);
             toggleBrand("all");
+            resetCategoryFilter();
           }}
           className={clsx(
-            "text-left rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
+            "h-full text-left rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
             brandFilter === "all" && !urgentOnly
               ? "border-slate-900 ring-1 ring-slate-900/10"
               : "border-slate-200"
@@ -72,14 +75,14 @@ export function DashboardCards(props: {
         <button
           type="button"
           onClick={() => {
-            setCategoryFilter("all");
+            resetCategoryFilter();
             setUrgentOnly((p) => !p);
           }}
           className={clsx(
-            "text-left rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
+            "h-full text-left rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
             urgentOnly ? "border-rose-600 ring-1 ring-rose-600/10" : "border-slate-200"
           )}
-          title="Click: filtrează doar urgente (nu afectează totalurile)"
+          title="Click: filtrează doar urgente"
         >
           <p className="text-xs font-semibold text-slate-500 inline-flex items-center gap-2">
             <span className="inline-flex items-center gap-1">
@@ -105,10 +108,11 @@ export function DashboardCards(props: {
               type="button"
               onClick={() => {
                 setUrgentOnly(false);
+                resetCategoryFilter();
                 toggleBrand(b);
               }}
               className={clsx(
-                "text-left rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
+                "h-full text-left rounded-3xl border bg-white p-4 sm:p-5 hover:bg-slate-50 transition",
                 active && !urgentOnly
                   ? "border-slate-900 ring-1 ring-slate-900/10"
                   : "border-slate-200"
