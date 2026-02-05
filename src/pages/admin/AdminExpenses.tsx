@@ -31,6 +31,14 @@ import { deleteReceipt, uploadReceipt } from "./expenses/storage";
 type BaseCat = "Operational" | "Marketing" | "Employees" | "Miscellaneous";
 const BASE_ORDER: BaseCat[] = ["Operational", "Marketing", "Employees", "Miscellaneous"];
 
+// ✅ aici definim brandurile BUSINESS (fara Personal)
+const BUSINESS_BRANDS = ["Mozas", "Volocar", "TDG", "Brandly", "GetSureDrive"] as const;
+type BusinessBrand = (typeof BUSINESS_BRANDS)[number];
+
+function isBusinessBrand(v: unknown): v is BusinessBrand {
+  return BUSINESS_BRANDS.includes(String(v || "") as BusinessBrand);
+}
+
 function mapLegacyMainToBase(mainRaw: string): BaseCat | null {
   const m = String(mainRaw || "").trim();
 
@@ -48,7 +56,9 @@ function mapLegacyMainToBase(mainRaw: string): BaseCat | null {
   return "Miscellaneous";
 }
 
-export default function AdminExpenses() {
+export default function AdminExpenses(props: { mode?: "business" | "personal" }) {
+  const mode = props.mode ?? "business";
+
   const { rows, loading, reload, upsertDb, deleteDb, removeLocal, insertMany } = useExpenses();
 
   // periods
@@ -80,6 +90,11 @@ export default function AdminExpenses() {
     const { start, end } = periodRange(period, customFrom, customTo);
 
     return rows.filter((r) => {
+      // ✅ scoatem Personal din pagina Expenses (business)
+      const b = String(r.brand || "");
+      if (mode === "business" && b === "Personal") return false;
+      if (mode === "personal" && b !== "Personal") return false;
+
       if (start || end) {
         const d = parseISOToDate(r.expense_date);
         if (!d) return false;
@@ -108,14 +123,19 @@ export default function AdminExpenses() {
 
       return hay.includes(qq);
     });
-  }, [rows, q, statusFilter, period, customFrom, customTo]);
+  }, [rows, q, statusFilter, period, customFrom, customTo, mode]);
 
   const scope = useMemo(() => {
     let out = base;
-    if (brandFilter !== "all") out = out.filter((r) => String(r.brand || "") === brandFilter);
+
+    // brand filter (doar in business; in personal e redundant)
+    if (mode === "business" && brandFilter !== "all") {
+      out = out.filter((r) => String(r.brand || "") === brandFilter);
+    }
+
     if (urgentOnly) out = out.filter((r) => (r.status as any) === "Urgent");
     return out;
-  }, [base, brandFilter, urgentOnly]);
+  }, [base, brandFilter, urgentOnly, mode]);
 
   const filtered = useMemo(() => {
     let out = scope;
@@ -143,20 +163,23 @@ export default function AdminExpenses() {
   const dashboard = useMemo(() => {
     const total = sumByCurrency(base);
 
-    const byBrand: Record<string, Record<string, number>> = {
-      Mozas: {},
-      Volocar: {},
-      TDG: {},
-      Brandly: {},
-      GetSureDrive: {},
-      Personal: {},
-    };
+    // ✅ fara Personal aici (in business)
+    const byBrand: Record<string, Record<string, number>> = {};
+    if (mode === "business") {
+      for (const b of BUSINESS_BRANDS) byBrand[b] = {};
+    } else {
+      byBrand["Personal"] = {};
+    }
 
     for (const r of base) {
-      const b = (r.brand || "") as keyof typeof byBrand;
-      if (!byBrand[b]) continue;
+      const b = String(r.brand || "");
+      if (mode === "business") {
+        if (!isBusinessBrand(b)) continue;
+      } else {
+        if (b !== "Personal") continue;
+      }
 
-      const cur = (r.currency || "AED").toUpperCase();
+      const cur = String(r.currency || "AED").toUpperCase();
       const amt = Number(r.amount);
       if (!Number.isFinite(amt)) continue;
 
@@ -164,7 +187,7 @@ export default function AdminExpenses() {
     }
 
     return { total, byBrand };
-  }, [base]);
+  }, [base, mode]);
 
   const urgentAgg = useMemo(() => {
     const urgentRows = base.filter((r) => (r.status as any) === "Urgent");
@@ -198,7 +221,6 @@ export default function AdminExpenses() {
       if (sub) set.add(sub);
     }
 
-    // add from tree for consistency
     const treeList = CATEGORY_TREE.business[baseCategory] || [];
     for (const s of treeList) set.add(s);
 
@@ -219,7 +241,7 @@ export default function AdminExpenses() {
       if (b !== baseCategory) continue;
 
       const sub = String(cat.sub || "").trim() || "Other";
-      const cur = (r.currency || "AED").toUpperCase();
+      const cur = String(r.currency || "AED").toUpperCase();
       const amt = Number(r.amount);
 
       const entry = map.get(sub) || { sumByCur: {}, count: 0, totalNumeric: 0 };
@@ -239,6 +261,7 @@ export default function AdminExpenses() {
   }, [scope, baseCategory]);
 
   const toggleBrand = (b: string | "all") => {
+    if (mode !== "business") return;
     setBrandFilter((prev) => (prev === b ? "all" : b));
     setUrgentOnly(false);
     setBaseCategory("all");
@@ -258,7 +281,7 @@ export default function AdminExpenses() {
       category: "",
       mainCategory: "",
       subCategory: "",
-      brand: "Mozas",
+      brand: mode === "personal" ? "Personal" : "Mozas",
       note: "",
       aiSuggestion: null,
       receipt_url: "",
@@ -276,12 +299,12 @@ export default function AdminExpenses() {
       expense_date: r.expense_date || todayISO(),
       vendor: r.vendor || "",
       amount: r.amount == null ? "" : String(r.amount),
-      currency: (r.currency || "AED").toUpperCase(),
+      currency: String(r.currency || "AED").toUpperCase(),
       vat: r.vat == null ? "" : String(r.vat),
       category: r.category || "",
       mainCategory: cat.main || "",
       subCategory: cat.sub || "",
-      brand: r.brand || "Mozas",
+      brand: r.brand || (mode === "personal" ? "Personal" : "Mozas"),
       note: r.note || "",
       aiSuggestion: null,
       receipt_url: r.receipt_url || "",
@@ -304,8 +327,9 @@ export default function AdminExpenses() {
     setEditing({ ...editing, receiptFile: file, receiptPreview: preview });
   };
 
-  useVendorCategorySuggest({ editorOpen, editing, setEditing, rows });
-  useAiMock({ editorOpen, editing, setEditing });
+  // ✅ evitam mismatch de tipuri dintre hook-uri (AnyDraft vs Draft)
+  useVendorCategorySuggest({ editorOpen, editing, setEditing: setEditing as any, rows });
+  useAiMock({ editorOpen, editing, setEditing: setEditing as any });
 
   const onSave = async () => {
     if (!editing) return;
@@ -340,10 +364,10 @@ export default function AdminExpenses() {
         expense_date,
         vendor,
         amount: amountNum,
-        currency: (editing.currency || "AED").toUpperCase(),
+        currency: String(editing.currency || "AED").toUpperCase(),
         vat: vatNum,
         category,
-        brand: editing.brand?.trim() || null,
+        brand: mode === "personal" ? "Personal" : (editing.brand?.trim() || null),
         note: editing.note?.trim() || null,
         receipt_url,
         source: "manual",
@@ -375,7 +399,11 @@ export default function AdminExpenses() {
   };
 
   const selectedBrandLabel =
-    brandFilter === "all" ? "All brands" : BRAND_DISPLAY[brandFilter] || brandFilter;
+    mode !== "business"
+      ? "Personal"
+      : brandFilter === "all"
+      ? "All brands"
+      : BRAND_DISPLAY[brandFilter] || brandFilter;
 
   const selectedCategoryLabel =
     baseCategory === "all"
@@ -395,18 +423,17 @@ export default function AdminExpenses() {
 
       <DashboardCards
         baseCount={base.length}
-        brandFilter={brandFilter}
+        brandFilter={mode === "business" ? brandFilter : "Personal"}
         urgentOnly={urgentOnly}
         setUrgentOnly={setUrgentOnly}
         toggleBrand={toggleBrand}
         setCategoryFilter={() => {
           setBaseCategory("all");
           setSubCategory("all");
-        }}
+        } }
         dashboardTotal={dashboard.total}
         dashboardByBrand={dashboard.byBrand}
-        urgentAgg={urgentAgg}
-      />
+        urgentAgg={urgentAgg} brands={[]}      />
 
       <CategorySection
         selectedBrandLabel={selectedBrandLabel}
@@ -430,12 +457,13 @@ export default function AdminExpenses() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
         <ImportXlsxButton
           year={new Date().getFullYear()}
-          brand={brandFilter !== "all" ? brandFilter : "Volocar"}
+          brand={mode === "personal" ? "Personal" : (brandFilter !== "all" ? brandFilter : "Volocar")}
           currency="AED"
           status="Neplatit"
           onImport={async (payloads) => {
             const dbPayloads = payloads.map((p) => ({
               ...p,
+              brand: mode === "personal" ? "Personal" : p.brand,
               source: "manual" as const,
               status: (p.status as DbExpense["status"]) ?? undefined,
             }));
@@ -456,12 +484,12 @@ export default function AdminExpenses() {
       <FiltersRow
         q={q}
         setQ={setQ}
-        brandFilter={brandFilter}
+        brandFilter={mode === "business" ? brandFilter : "Personal"}
         setBrandFilter={(v) => {
           setUrgentOnly(false);
           setBaseCategory("all");
           setSubCategory("all");
-          setBrandFilter(v);
+          if (mode === "business") setBrandFilter(v);
         }}
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
