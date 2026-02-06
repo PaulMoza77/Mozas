@@ -1,44 +1,43 @@
 // src/lib/garage/storage.ts
 import { supabase } from "../supabase";
-import { GARAGE_BUCKET } from "./api";
 
-/** Upload car photo to private bucket, returns storage path */
-export async function uploadGaragePhoto(file: File, carId: string) {
+export const GARAGE_BUCKET = "garage-private";
+
+function safeExt(name: string) {
+  const ext = (name.split(".").pop() || "jpg").toLowerCase();
+  return ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+}
+function rand6() {
+  return Math.random().toString(16).slice(2, 8);
+}
+
+/**
+ * Upload foto în bucket privat.
+ * IMPORTANT: path MUST be "cars/<carId>/..." ca să treacă policy-ul tău (split_part(name,'/',2))
+ */
+export async function uploadGaragePhoto(file: File, carId: string): Promise<string> {
   if (!file) throw new Error("Missing file.");
   if (!carId) throw new Error("Missing carId.");
 
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
-  const path = `cars/${carId}/${Date.now()}_${Math.random().toString(16).slice(2, 8)}.${safeExt}`;
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("Not authenticated.");
 
-  // IMPORTANT: use ONLY the constant bucket
-  const res = await supabase.storage.from(GARAGE_BUCKET).upload(path, file, {
+  const ext = safeExt(file.name);
+  const path = `cars/${carId}/${Date.now()}_${rand6()}.${ext}`;
+
+  const up = await supabase.storage.from(GARAGE_BUCKET).upload(path, file, {
     upsert: true,
-    contentType: file.type || undefined,
+    contentType: file.type || "image/jpeg",
     cacheControl: "3600",
   });
 
-  if (res.error) {
-    // if bucket mismatch or wrong project, this is where it shows
-    throw res.error;
-  }
-
-  return path;
+  if (up.error) throw up.error;
+  return path; // salvăm doar path în DB
 }
 
-/** Get signed URL for displaying private image */
-export async function signedGaragePhotoUrl(path: string, expiresInSeconds = 3600) {
-  if (!path) return null;
-
-  const res = await supabase.storage.from(GARAGE_BUCKET).createSignedUrl(path, expiresInSeconds);
+export async function getGaragePhotoSignedUrl(photoPath: string, expiresIn = 60 * 60) {
+  if (!photoPath) return null;
+  const res = await supabase.storage.from(GARAGE_BUCKET).createSignedUrl(photoPath, expiresIn);
   if (res.error) throw res.error;
-
   return res.data?.signedUrl || null;
-}
-
-/** Remove photo */
-export async function deleteGaragePhoto(path: string) {
-  if (!path) return;
-  const res = await supabase.storage.from(GARAGE_BUCKET).remove([path]);
-  if (res.error) throw res.error;
 }
