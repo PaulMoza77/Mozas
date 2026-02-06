@@ -14,7 +14,7 @@ import type {
 /** =========================
  * Storage config
  * ========================= */
-export const GARAGE_BUCKET = "garage-private"; // ✅ MUST exist in Supabase Storage
+export const GARAGE_BUCKET = "garage-private"; // must exist
 
 function todayISO() {
   const d = new Date();
@@ -24,20 +24,19 @@ function todayISO() {
   return `${y}-${m}-${dd}`;
 }
 
+function normalizeCurrency(v?: string | null) {
+  const s = String(v || "EUR").trim().toUpperCase();
+  return s || "EUR";
+}
+
 function safeExt(name: string) {
   const parts = (name || "").split(".");
   const ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "jpg";
-  if (["jpg", "jpeg", "png", "webp"].includes(ext)) return ext;
-  return "jpg";
+  return ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
 }
 
 function rand6() {
   return Math.random().toString(16).slice(2, 8);
-}
-
-function normalizeCurrency(v?: string | null) {
-  const s = String(v || "EUR").trim().toUpperCase();
-  return s || "EUR";
 }
 
 async function requireUid() {
@@ -49,29 +48,27 @@ async function requireUid() {
 
 /** =========================
  * Storage helpers (car photo)
- * - store ONLY photo_path (string) in DB
- * - generate signed URL for display
  *
- * IMPORTANT: path includes uid so policies can enforce access:
- *   {uid}/cars/{carId}/...
+ * IMPORTANT:
+ * Path MUST be: "cars/<carId>/..."  (ca să treacă policy-ul tău cu split_part(name,'/',2))
  * ========================= */
 export async function uploadGarageCarPhoto(file: File, carId: string): Promise<string> {
   if (!file) throw new Error("Missing file.");
   if (!carId) throw new Error("Missing carId.");
 
-  const uid = await requireUid();
+  await requireUid(); // doar ca să fim siguri că e logat (policy e pe authenticated)
 
   const ext = safeExt(file.name);
-  const path = `${uid}/cars/${carId}/${Date.now()}_${rand6()}.${ext}`;
+  const path = `cars/${carId}/${Date.now()}_${rand6()}.${ext}`;
 
   const up = await supabase.storage.from(GARAGE_BUCKET).upload(path, file, {
     upsert: true,
-    contentType: file.type || undefined,
+    contentType: file.type || "image/jpeg",
     cacheControl: "3600",
   });
 
   if (up.error) throw up.error;
-  return path; // ✅ ALWAYS a string
+  return path; // ✅ string path (se salvează în DB)
 }
 
 export async function deleteGarageCarPhoto(photo_path: string) {
@@ -82,10 +79,8 @@ export async function deleteGarageCarPhoto(photo_path: string) {
 
 export async function getGarageCarPhotoSignedUrl(photo_path: string, expiresInSeconds = 60 * 60) {
   if (!photo_path) return null;
-
   const signed = await supabase.storage.from(GARAGE_BUCKET).createSignedUrl(photo_path, expiresInSeconds);
   if (signed.error) throw signed.error;
-
   return signed.data?.signedUrl || null;
 }
 
@@ -106,15 +101,14 @@ export async function fetchCars(): Promise<GarageCarRow[]> {
 }
 
 /**
- * ⚠️ Keep upsertCar for compatibility with rest of app,
- * but DO NOT use it for partial updates where NOT NULL columns exist.
+ * ✅ Folosește upsertCar pentru CREATE sau UPDATE complet (când ai name, etc.)
+ * Atenție: la UPDATE parțial (doar photo_url) NU folosi upsert (poate lovi NOT NULL).
  */
 export async function upsertCar(payload: Partial<GarageCarRow> & { id?: string }): Promise<GarageCarRow> {
   const uid = await requireUid();
 
-  // safety: prevent accidental insert with missing name
-  const isInsert = !payload.id;
-  if (isInsert) {
+  // dacă e insert, name e obligatoriu
+  if (!payload.id) {
     const nm = String((payload as any).name || "").trim();
     if (!nm) throw new Error("Car name is required.");
   }
@@ -136,8 +130,7 @@ export async function upsertCar(payload: Partial<GarageCarRow> & { id?: string }
 }
 
 /**
- * ✅ Use this for partial updates (ex: photo_url only).
- * This avoids the 'name NOT NULL' insert trap of upsert.
+ * ✅ UPDATE parțial (ex: photo_url)
  */
 export async function updateCar(id: string, patch: Partial<GarageCarRow>): Promise<GarageCarRow> {
   const uid = await requireUid();
@@ -145,7 +138,7 @@ export async function updateCar(id: string, patch: Partial<GarageCarRow>): Promi
 
   const res = await supabase
     .from("garage_cars")
-    .update({ ...patch, owner_id: uid } as any) // owner_id harmless; also guarantees RLS match
+    .update(patch as any)
     .eq("id", id)
     .eq("owner_id", uid)
     .select("*")
@@ -185,9 +178,11 @@ export async function upsertImportant(payload: Partial<GarageImportantRow> & { c
    EXPENSES
 ========================= */
 export async function fetchCarExpenses(carId: string): Promise<GarageExpenseRow[]> {
-  const res = await supabase.from("garage_car_expenses").select("*").eq("car_id", carId).order("date", {
-    ascending: false,
-  });
+  const res = await supabase
+    .from("garage_car_expenses")
+    .select("*")
+    .eq("car_id", carId)
+    .order("date", { ascending: false });
 
   if (res.error) throw res.error;
   return (res.data || []) as GarageExpenseRow[];
@@ -231,9 +226,11 @@ export async function deleteCarExpense(id: string) {
    INCOME
 ========================= */
 export async function fetchCarIncome(carId: string): Promise<GarageIncomeRow[]> {
-  const res = await supabase.from("garage_car_income").select("*").eq("car_id", carId).order("date", {
-    ascending: false,
-  });
+  const res = await supabase
+    .from("garage_car_income")
+    .select("*")
+    .eq("car_id", carId)
+    .order("date", { ascending: false });
 
   if (res.error) throw res.error;
   return (res.data || []) as GarageIncomeRow[];
@@ -301,12 +298,18 @@ export async function fetchLeasingSchedule(contractId: string): Promise<GarageLe
 }
 
 /* =========================
-   BUNDLE (helper)
+   BUNDLE
 ========================= */
 export async function fetchCarBundle(carId: string): Promise<CarBundle> {
   const uid = await requireUid();
 
-  const carRes = await supabase.from("garage_cars").select("*").eq("id", carId).eq("owner_id", uid).single();
+  const carRes = await supabase
+    .from("garage_cars")
+    .select("*")
+    .eq("id", carId)
+    .eq("owner_id", uid)
+    .single();
+
   if (carRes.error) throw carRes.error;
 
   const [important, lease, expenses, income] = await Promise.all([
@@ -316,11 +319,5 @@ export async function fetchCarBundle(carId: string): Promise<CarBundle> {
     fetchCarIncome(carId),
   ]);
 
-  return {
-    car: carRes.data as any,
-    important,
-    lease,
-    expenses,
-    income,
-  };
+  return { car: carRes.data as any, important, lease, expenses, income };
 }

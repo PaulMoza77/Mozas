@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Upload, Save } from "lucide-react";
 
-import { fetchCars, upsertCar, updateCar } from "../../../../lib/garage/api";
+import { fetchCars, upsertCar } from "../../../../lib/garage/api";
 import type { GarageCarRow } from "../../../../lib/garage/types";
 import { uploadGaragePhoto } from "../../../../lib/garage/storage";
 
@@ -124,9 +124,7 @@ export function CarEditorModal(props: {
 
         <div className="space-y-4 p-5">
           {loading ? (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              Loading…
-            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Loading…</div>
           ) : null}
 
           {localPreview ? (
@@ -232,7 +230,7 @@ export function CarEditorModal(props: {
 
               setBusy(true);
               try {
-                // 1) Save full car data (safe for NOT NULL)
+                // 1) upsert car (name e obligatoriu -> nu mai apare eroarea cu name null)
                 const baseSaved = await upsertCar({
                   ...(carId ? { id: carId } : {}),
                   name: name.trim(),
@@ -242,11 +240,10 @@ export function CarEditorModal(props: {
                   purchase_date: purchaseDate || null,
                 } as any);
 
-                // 2) Upload photo (optional) + UPDATE photo_url (NOT upsert!)
+                // 2) upload photo -> primesc path "cars/<carId>/..."
                 if (photoFile) {
-                  // uploadGaragePhoto should return string path
                   const photoPath = await uploadGaragePhoto(photoFile, baseSaved.id);
-                  const saved2 = await updateCar(baseSaved.id, { photo_url: photoPath } as any);
+                  const saved2 = await upsertCar({ id: baseSaved.id, photo_url: photoPath } as any);
                   onSaved(saved2);
                 } else {
                   onSaved(baseSaved);
