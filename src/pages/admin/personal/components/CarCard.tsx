@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, ChevronDown } from "lucide-react";
 import type { GarageCarRow } from "../../../../lib/garage/types";
 
@@ -20,9 +20,12 @@ function clsx(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
 }
 
+const GARAGE_BUCKET = "garage-private";
+
 async function signedPhotoUrl(path: string): Promise<string | null> {
-  // bucket is private => sign
-  const { data, error } = await supabase.storage.from("garage-photos").createSignedUrl(path, 60 * 60); // 1h
+  if (!path) return null;
+
+  const { data, error } = await supabase.storage.from(GARAGE_BUCKET).createSignedUrl(path, 60 * 60); // 1h
   if (error) return null;
   return data?.signedUrl || null;
 }
@@ -45,23 +48,29 @@ export function CarCard(props: {
   const inc = useCarIncome(car.id);
   const lease = useCarLeasing(car.id);
 
-  // signed url fetch
-  useMemo(() => {
+  // ✅ signed url fetch (side-effect => useEffect)
+  useEffect(() => {
     let cancelled = false;
+
     (async () => {
       if (!car.photo_url) {
         setPhotoSigned(null);
+        setPhotoLoading(false);
         return;
       }
+
       setPhotoLoading(true);
       const url = await signedPhotoUrl(car.photo_url);
-      if (!cancelled) setPhotoSigned(url);
-      if (!cancelled) setPhotoLoading(false);
+
+      if (!cancelled) {
+        setPhotoSigned(url);
+        setPhotoLoading(false);
+      }
     })();
+
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [car.photo_url]);
 
   const expenseTotal = useMemo(() => exp.rows.reduce((a, r) => a + Number(r.amount || 0), 0), [exp.rows]);
@@ -102,9 +111,7 @@ export function CarCard(props: {
               </div>
             )
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
-              No photo
-            </div>
+            <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">No photo</div>
           )}
         </div>
 
@@ -126,7 +133,7 @@ export function CarCard(props: {
               if (!ok) return;
               try {
                 await deleteCar(car.id);
-                window.location.reload(); // simplu & safe acum
+                window.location.reload();
               } catch (e: any) {
                 alert(e?.message || "Delete failed.");
               }
@@ -145,8 +152,8 @@ export function CarCard(props: {
           <div className="min-w-0">
             <div className="text-xl font-semibold tracking-tight text-slate-900">{car.name}</div>
             <div className="mt-1 text-sm text-slate-600">
-              Purchase: <span className="font-semibold">{money(car.purchase_price, car.purchase_currency)}</span>{" "}
-              · {car.purchase_km.toLocaleString()} km
+              Purchase: <span className="font-semibold">{money(car.purchase_price, car.purchase_currency)}</span> ·{" "}
+              {car.purchase_km.toLocaleString()} km
               {car.purchase_date ? ` · ${car.purchase_date}` : ""}
             </div>
           </div>
@@ -176,16 +183,12 @@ export function CarCard(props: {
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="text-xs text-slate-500">Expenses</div>
-            <div className="mt-1 text-lg font-semibold text-rose-700">
-              {money(expenseTotal, car.purchase_currency)}
-            </div>
+            <div className="mt-1 text-lg font-semibold text-rose-700">{money(expenseTotal, car.purchase_currency)}</div>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="text-xs text-slate-500">Income</div>
-            <div className="mt-1 text-lg font-semibold text-emerald-700">
-              {money(incomeTotal, car.purchase_currency)}
-            </div>
+            <div className="mt-1 text-lg font-semibold text-emerald-700">{money(incomeTotal, car.purchase_currency)}</div>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -224,7 +227,10 @@ export function CarCard(props: {
                 <div className="text-sm text-slate-500">No expenses yet.</div>
               ) : (
                 exp.rows.slice(0, 6).map((r) => (
-                  <div key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                  >
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-slate-900">{r.name}</div>
                       <div className="mt-0.5 text-xs text-slate-500">
@@ -261,7 +267,10 @@ export function CarCard(props: {
                 <div className="text-sm text-slate-500">No income yet.</div>
               ) : (
                 inc.rows.slice(0, 6).map((r) => (
-                  <div key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                  >
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-slate-900">{r.source}</div>
                       <div className="mt-0.5 text-xs text-slate-500">{r.date}</div>
@@ -287,7 +296,6 @@ export function CarCard(props: {
         <button
           type="button"
           onClick={() => {
-            // simple collapse/expand behavior: scroll to top; you can replace later
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900"
@@ -304,7 +312,7 @@ export function CarCard(props: {
         defaultCurrency={car.purchase_currency}
         onSaved={async () => {
           await exp.reload();
-          await lease.reload(); // leasing progress changes if leasing_rate
+          await lease.reload();
           setOpenExpense(false);
         }}
       />
