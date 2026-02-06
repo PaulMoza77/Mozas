@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Upload, Save } from "lucide-react";
 
+import { supabase } from "../../../../lib/supabase";
 import { fetchCars, upsertCar } from "../../../../lib/garage/api";
 import type { GarageCarRow } from "../../../../lib/garage/types";
 import { uploadGaragePhoto } from "../../../../lib/garage/storage";
@@ -49,7 +50,6 @@ export function CarEditorModal(props: {
     (async () => {
       if (!open) return;
 
-      // reset default
       setName("");
       setPurchasePrice("");
       setPurchaseCurrency("EUR");
@@ -98,11 +98,8 @@ export function CarEditorModal(props: {
   const canSave = useMemo(() => {
     if (busy) return false;
     if (!name.trim()) return false;
-
-    // allow empty -> treat as 0? (eu prefer obligatoriu numeric)
     if (!Number.isFinite(priceNum) || priceNum < 0) return false;
     if (!Number.isFinite(kmNum) || kmNum < 0) return false;
-
     return true;
   }, [busy, name, priceNum, kmNum]);
 
@@ -127,7 +124,7 @@ export function CarEditorModal(props: {
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="space-y-4 p-5">
           {loading ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
               Loading…
@@ -237,9 +234,14 @@ export function CarEditorModal(props: {
 
               setBusy(true);
               try {
-                // 1) upsert car first (need id)
+                const userRes = await supabase.auth.getUser();
+                const uid = userRes.data.user?.id;
+                if (!uid) throw new Error("Not authenticated.");
+
+                // 1) upsert car cu owner_id (CRITICAL pt RLS)
                 const baseSaved = await upsertCar({
                   ...(carId ? { id: carId } : {}),
+                  owner_id: uid,
                   name: name.trim(),
                   purchase_price: priceNum,
                   purchase_currency: (purchaseCurrency || "EUR").trim().toUpperCase(),
@@ -247,10 +249,15 @@ export function CarEditorModal(props: {
                   purchase_date: purchaseDate || null,
                 } as any);
 
-                // 2) upload photo (optional) and update car.photo_url (path)
+                // 2) upload photo (optional) + update photo_url (path)
                 if (photoFile) {
-                  const path = await uploadGaragePhoto(photoFile, baseSaved.id);
-                  const saved2 = await upsertCar({ id: baseSaved.id, photo_url: path } as any);
+                  // uploadGaragePhoto trebuie să returneze STRING path (ex: "cars/<carId>/....jpg")
+                  const photoPath = await uploadGaragePhoto(photoFile, baseSaved.id);
+                  const saved2 = await upsertCar({
+                    id: baseSaved.id,
+                    owner_id: uid,
+                    photo_url: photoPath,
+                  } as any);
                   onSaved(saved2);
                 } else {
                   onSaved(baseSaved);
