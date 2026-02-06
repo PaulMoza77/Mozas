@@ -2,8 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Upload, Save } from "lucide-react";
 
-import { supabase } from "../../../../lib/supabase";
-import { fetchCars, upsertCar } from "../../../../lib/garage/api";
+import { fetchCars, upsertCar, updateCar } from "../../../../lib/garage/api";
 import type { GarageCarRow } from "../../../../lib/garage/types";
 import { uploadGaragePhoto } from "../../../../lib/garage/storage";
 
@@ -64,8 +63,7 @@ export function CarEditorModal(props: {
       try {
         const all = await fetchCars();
         const found = all.find((c) => c.id === carId) || null;
-        if (!found) return;
-        if (cancelled) return;
+        if (!found || cancelled) return;
 
         setName(found.name || "");
         setPurchasePrice(found.purchase_price == null ? "" : String(found.purchase_price));
@@ -234,14 +232,9 @@ export function CarEditorModal(props: {
 
               setBusy(true);
               try {
-                const userRes = await supabase.auth.getUser();
-                const uid = userRes.data.user?.id;
-                if (!uid) throw new Error("Not authenticated.");
-
-                // 1) upsert car cu owner_id (CRITICAL pt RLS)
+                // 1) Save full car data (safe for NOT NULL)
                 const baseSaved = await upsertCar({
                   ...(carId ? { id: carId } : {}),
-                  owner_id: uid,
                   name: name.trim(),
                   purchase_price: priceNum,
                   purchase_currency: (purchaseCurrency || "EUR").trim().toUpperCase(),
@@ -249,15 +242,11 @@ export function CarEditorModal(props: {
                   purchase_date: purchaseDate || null,
                 } as any);
 
-                // 2) upload photo (optional) + update photo_url (path)
+                // 2) Upload photo (optional) + UPDATE photo_url (NOT upsert!)
                 if (photoFile) {
-                  // uploadGaragePhoto trebuie să returneze STRING path (ex: "cars/<carId>/....jpg")
+                  // uploadGaragePhoto should return string path
                   const photoPath = await uploadGaragePhoto(photoFile, baseSaved.id);
-                  const saved2 = await upsertCar({
-                    id: baseSaved.id,
-                    owner_id: uid,
-                    photo_url: photoPath,
-                  } as any);
+                  const saved2 = await updateCar(baseSaved.id, { photo_url: photoPath } as any);
                   onSaved(saved2);
                 } else {
                   onSaved(baseSaved);
