@@ -48,15 +48,13 @@ async function requireUid() {
 
 /** =========================
  * Storage helpers (car photo)
- *
- * IMPORTANT:
- * Path MUST be: "cars/<carId>/..."  (ca să treacă policy-ul tău cu split_part(name,'/',2))
+ * Path MUST be: "cars/<carId>/..."
  * ========================= */
 export async function uploadGarageCarPhoto(file: File, carId: string): Promise<string> {
   if (!file) throw new Error("Missing file.");
   if (!carId) throw new Error("Missing carId.");
 
-  await requireUid(); // doar ca să fim siguri că e logat (policy e pe authenticated)
+  await requireUid();
 
   const ext = safeExt(file.name);
   const path = `cars/${carId}/${Date.now()}_${rand6()}.${ext}`;
@@ -68,7 +66,7 @@ export async function uploadGarageCarPhoto(file: File, carId: string): Promise<s
   });
 
   if (up.error) throw up.error;
-  return path; // ✅ string path (se salvează în DB)
+  return path;
 }
 
 export async function deleteGarageCarPhoto(photo_path: string) {
@@ -101,27 +99,39 @@ export async function fetchCars(): Promise<GarageCarRow[]> {
 }
 
 /**
- * ✅ Folosește upsertCar pentru CREATE sau UPDATE complet (când ai name, etc.)
- * Atenție: la UPDATE parțial (doar photo_url) NU folosi upsert (poate lovi NOT NULL).
+ * ✅ CREATE or UPDATE "full"
+ * - INSERT: name required
+ * - UPDATE: if payload includes name, it must not be empty
  */
-export async function upsertCar(payload: Partial<GarageCarRow> & { id?: string }): Promise<GarageCarRow> {
+export async function upsertCar(
+  payload: Partial<GarageCarRow> & { id?: string }
+): Promise<GarageCarRow> {
   const uid = await requireUid();
 
-  // dacă e insert, name e obligatoriu
-  if (!payload.id) {
-    const nm = String((payload as any).name || "").trim();
+  const isInsert = !payload.id;
+
+  // INSERT: name required
+  if (isInsert) {
+    const nm = String(payload.name ?? "").trim();
     if (!nm) throw new Error("Car name is required.");
   }
 
+  // UPDATE: if you send name, it must not be empty
+  if (!isInsert && "name" in payload) {
+    const nm = String(payload.name ?? "").trim();
+    if (!nm) throw new Error("Car name cannot be empty.");
+  }
+
+  // IMPORTANT:
+  // - On INSERT we must set owner_id
+  // - On UPDATE we should NOT overwrite owner_id accidentally
+  const row = isInsert
+    ? ({ ...payload, owner_id: uid } as Partial<GarageCarRow>)
+    : ({ ...payload } as Partial<GarageCarRow>);
+
   const res = await supabase
     .from("garage_cars")
-    .upsert(
-      {
-        ...payload,
-        owner_id: uid,
-      } as any,
-      { onConflict: "id" }
-    )
+    .upsert(row as any, { onConflict: "id" })
     .select("*")
     .single();
 
@@ -130,7 +140,7 @@ export async function upsertCar(payload: Partial<GarageCarRow> & { id?: string }
 }
 
 /**
- * ✅ UPDATE parțial (ex: photo_url)
+ * ✅ PATCH update (ex: photo_url)
  */
 export async function updateCar(id: string, patch: Partial<GarageCarRow>): Promise<GarageCarRow> {
   const uid = await requireUid();
@@ -319,5 +329,5 @@ export async function fetchCarBundle(carId: string): Promise<CarBundle> {
     fetchCarIncome(carId),
   ]);
 
-  return { car: carRes.data as any, important, lease, expenses, income };
+  return { car: carRes.data as GarageCarRow, important, lease, expenses, income };
 }
