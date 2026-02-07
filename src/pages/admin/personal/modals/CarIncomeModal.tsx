@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+// src/pages/admin/personal/modals/CarIncomeModal.tsx
+import { useEffect, useMemo, useState } from "react";
 import { X, Save } from "lucide-react";
 
-import { addCarIncome } from "../../../../lib/garage/api";
+import type { GarageIncomeRow } from "../../../../lib/garage/types";
+import { addCarIncome, updateCarIncome } from "../../../../lib/garage/api";
 
 function clsx(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
@@ -20,24 +22,48 @@ export function CarIncomeModal(props: {
   onClose: () => void;
   carId: string;
   defaultCurrency: string;
+  initial?: GarageIncomeRow | null; // ✅ edit row
   onSaved: () => Promise<void> | void;
 }) {
-  const { open, onClose, carId, defaultCurrency, onSaved } = props;
+  const { open, onClose, carId, defaultCurrency, initial = null, onSaved } = props;
+
   const [busy, setBusy] = useState(false);
 
   const [date, setDate] = useState(todayISO());
   const [source, setSource] = useState("");
-  const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState(defaultCurrency || "EUR");
+  const [amount, setAmount] = useState<string>("");
+  const [currency, setCurrency] = useState((defaultCurrency || "EUR").toUpperCase());
+  const [note, setNote] = useState("");
+
+  const isEdit = !!initial?.id;
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (initial) {
+      setDate(initial.date || todayISO());
+      setSource(initial.source || "");
+      setAmount(initial.amount != null ? String(initial.amount) : "");
+      setCurrency((initial.currency || defaultCurrency || "EUR").toUpperCase());
+      setNote(initial.note || "");
+    } else {
+      setDate(todayISO());
+      setSource("");
+      setAmount("");
+      setCurrency((defaultCurrency || "EUR").toUpperCase());
+      setNote("");
+    }
+  }, [open, initial, defaultCurrency]);
 
   const canSave = useMemo(() => {
     if (busy) return false;
+    if (!date) return false;
     if (!source.trim()) return false;
     const a = Number(amount);
     if (!Number.isFinite(a) || a <= 0) return false;
-    if (!date) return false;
+    if (!currency.trim()) return false;
     return true;
-  }, [busy, source, amount, date]);
+  }, [busy, date, source, amount, currency]);
 
   if (!open) return null;
 
@@ -46,7 +72,7 @@ export function CarIncomeModal(props: {
       <div className="w-full max-w-lg rounded-3xl bg-white shadow-xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
           <div>
-            <div className="text-lg font-semibold">Add Income</div>
+            <div className="text-lg font-semibold">{isEdit ? "Edit Income" : "Add Income"}</div>
             <div className="mt-1 text-sm text-slate-600">Source + amount.</div>
           </div>
           <button
@@ -77,7 +103,7 @@ export function CarIncomeModal(props: {
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-slate-200"
-                placeholder="EUR / AED / RON"
+                placeholder="EUR / RON / AED"
               />
             </label>
           </div>
@@ -101,6 +127,16 @@ export function CarIncomeModal(props: {
               placeholder="ex: 500"
             />
           </label>
+
+          <label className="text-sm block">
+            <div className="mb-1 text-slate-600">Note (optional)</div>
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-slate-200"
+              placeholder="ex: cash / invoice / etc."
+            />
+          </label>
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-slate-100 p-5">
@@ -119,13 +155,27 @@ export function CarIncomeModal(props: {
             onClick={async () => {
               setBusy(true);
               try {
-                await addCarIncome({
-                  car_id: carId,
-                  date,
-                  source: source.trim(),
-                  amount: Number(amount),
-                  currency: currency.trim() || defaultCurrency || "EUR",
-                });
+                const a = Number(amount);
+
+                if (isEdit && initial?.id) {
+                  await updateCarIncome(initial.id, {
+                    date,
+                    source: source.trim(),
+                    amount: a,
+                    currency: currency.trim(),
+                    note: note.trim() || null,
+                  });
+                } else {
+                  await addCarIncome({
+                    car_id: carId,
+                    date,
+                    source: source.trim(),
+                    amount: a,
+                    currency: currency.trim() || defaultCurrency || "EUR",
+                    note: note.trim() || null,
+                  });
+                }
+
                 await onSaved();
               } catch (e: any) {
                 alert(e?.message || "Save failed.");

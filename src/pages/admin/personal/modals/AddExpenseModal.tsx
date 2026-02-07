@@ -1,3 +1,4 @@
+// src/pages/admin/personal/modals/AddExpenseModal.tsx
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import type { PersonalTxnDraft } from "./AddIncomeModal";
@@ -28,9 +29,7 @@ export function AddExpenseModal(props: {
   const [amount, setAmount] = useState<number>(0);
   const [note, setNote] = useState("");
 
-  const canSave = useMemo(() => {
-    return !!date && !!category && !!name && amount > 0 && !busy;
-  }, [date, category, name, amount, busy]);
+  const canSave = useMemo(() => !!date && !!category && !!name && amount > 0 && !busy, [date, category, name, amount, busy]);
 
   if (!open) return null;
 
@@ -42,11 +41,7 @@ export function AddExpenseModal(props: {
             <div className="text-lg font-semibold">Add Expense</div>
             <div className="mt-1 text-sm text-slate-600">Adaugă o cheltuială.</div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl hover:bg-slate-50"
-          >
+          <button type="button" onClick={onClose} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl hover:bg-slate-50">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -110,11 +105,7 @@ export function AddExpenseModal(props: {
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-slate-100 p-5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
-          >
+          <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50">
             Cancel
           </button>
 

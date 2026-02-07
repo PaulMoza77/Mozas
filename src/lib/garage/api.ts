@@ -100,41 +100,26 @@ export async function fetchCars(): Promise<GarageCarRow[]> {
 
 /**
  * ✅ CREATE or UPDATE "full"
- * - INSERT: name required
- * - UPDATE: if payload includes name, it must not be empty
  */
-export async function upsertCar(
-  payload: Partial<GarageCarRow> & { id?: string }
-): Promise<GarageCarRow> {
+export async function upsertCar(payload: Partial<GarageCarRow> & { id?: string }): Promise<GarageCarRow> {
   const uid = await requireUid();
-
   const isInsert = !payload.id;
 
-  // INSERT: name required
   if (isInsert) {
     const nm = String(payload.name ?? "").trim();
     if (!nm) throw new Error("Car name is required.");
   }
 
-  // UPDATE: if you send name, it must not be empty
   if (!isInsert && "name" in payload) {
     const nm = String(payload.name ?? "").trim();
     if (!nm) throw new Error("Car name cannot be empty.");
   }
 
-  // IMPORTANT:
-  // - On INSERT we must set owner_id
-  // - On UPDATE we should NOT overwrite owner_id accidentally
   const row = isInsert
     ? ({ ...payload, owner_id: uid } as Partial<GarageCarRow>)
     : ({ ...payload } as Partial<GarageCarRow>);
 
-  const res = await supabase
-    .from("garage_cars")
-    .upsert(row as any, { onConflict: "id" })
-    .select("*")
-    .single();
-
+  const res = await supabase.from("garage_cars").upsert(row as any, { onConflict: "id" }).select("*").single();
   if (res.error) throw res.error;
   return res.data as GarageCarRow;
 }
@@ -174,12 +159,7 @@ export async function fetchImportant(carId: string): Promise<GarageImportantRow 
 }
 
 export async function upsertImportant(payload: Partial<GarageImportantRow> & { car_id: string }) {
-  const res = await supabase
-    .from("garage_car_important")
-    .upsert(payload, { onConflict: "car_id" })
-    .select("*")
-    .single();
-
+  const res = await supabase.from("garage_car_important").upsert(payload, { onConflict: "car_id" }).select("*").single();
   if (res.error) throw res.error;
   return res.data as GarageImportantRow;
 }
@@ -227,6 +207,24 @@ export async function addCarExpense(payload: {
   return res.data as GarageExpenseRow;
 }
 
+/** ✅ UPDATE expense */
+export async function updateCarExpense(id: string, patch: Partial<GarageExpenseRow>): Promise<GarageExpenseRow> {
+  if (!id) throw new Error("Missing expense id.");
+
+  const res = await supabase
+    .from("garage_car_expenses")
+    .update({
+      ...patch,
+      currency: patch.currency != null ? normalizeCurrency(patch.currency) : undefined,
+    } as any)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (res.error) throw res.error;
+  return res.data as GarageExpenseRow;
+}
+
 export async function deleteCarExpense(id: string) {
   const res = await supabase.from("garage_car_expenses").delete().eq("id", id);
   if (res.error) throw res.error;
@@ -236,12 +234,7 @@ export async function deleteCarExpense(id: string) {
    INCOME
 ========================= */
 export async function fetchCarIncome(carId: string): Promise<GarageIncomeRow[]> {
-  const res = await supabase
-    .from("garage_car_income")
-    .select("*")
-    .eq("car_id", carId)
-    .order("date", { ascending: false });
-
+  const res = await supabase.from("garage_car_income").select("*").eq("car_id", carId).order("date", { ascending: false });
   if (res.error) throw res.error;
   return (res.data || []) as GarageIncomeRow[];
 }
@@ -271,6 +264,24 @@ export async function addCarIncome(payload: {
   return res.data as GarageIncomeRow;
 }
 
+/** ✅ UPDATE income */
+export async function updateCarIncome(id: string, patch: Partial<GarageIncomeRow>): Promise<GarageIncomeRow> {
+  if (!id) throw new Error("Missing income id.");
+
+  const res = await supabase
+    .from("garage_car_income")
+    .update({
+      ...patch,
+      currency: patch.currency != null ? normalizeCurrency(patch.currency) : undefined,
+    } as any)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (res.error) throw res.error;
+  return res.data as GarageIncomeRow;
+}
+
 export async function deleteCarIncome(id: string) {
   const res = await supabase.from("garage_car_income").delete().eq("id", id);
   if (res.error) throw res.error;
@@ -286,12 +297,7 @@ export async function fetchLeasingContract(carId: string): Promise<GarageLeasing
 }
 
 export async function upsertLeasingContract(payload: Partial<GarageLeasingContractRow> & { car_id: string }) {
-  const res = await supabase
-    .from("garage_leasing_contracts")
-    .upsert(payload, { onConflict: "car_id" })
-    .select("*")
-    .single();
-
+  const res = await supabase.from("garage_leasing_contracts").upsert(payload, { onConflict: "car_id" }).select("*").single();
   if (res.error) throw res.error;
   return res.data as GarageLeasingContractRow;
 }
@@ -313,13 +319,7 @@ export async function fetchLeasingSchedule(contractId: string): Promise<GarageLe
 export async function fetchCarBundle(carId: string): Promise<CarBundle> {
   const uid = await requireUid();
 
-  const carRes = await supabase
-    .from("garage_cars")
-    .select("*")
-    .eq("id", carId)
-    .eq("owner_id", uid)
-    .single();
-
+  const carRes = await supabase.from("garage_cars").select("*").eq("id", carId).eq("owner_id", uid).single();
   if (carRes.error) throw carRes.error;
 
   const [important, lease, expenses, income] = await Promise.all([

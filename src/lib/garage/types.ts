@@ -21,7 +21,15 @@ export type GarageImportantRow = {
   updated_at: string;
 };
 
-export type GarageExpenseKind = "general" | "leasing_rate" | "insurance" | "service" | "tax";
+// ✅ EXTINS ca sa poti folosi fuel/repair in UI
+export type GarageExpenseKind =
+  | "general"
+  | "leasing_rate"
+  | "insurance"
+  | "service"
+  | "tax"
+  | "fuel"
+  | "repair";
 
 export type GarageExpenseRow = {
   id: string;
