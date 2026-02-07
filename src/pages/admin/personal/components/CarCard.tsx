@@ -46,6 +46,7 @@ export function CarCard(props: {
   const [showAllExpenses, setShowAllExpenses] = useState(false);
   const [showAllIncome, setShowAllIncome] = useState(false);
 
+  // ✅ edit rows (NOT ids)
   const [editExpense, setEditExpense] = useState<GarageExpenseRow | null>(null);
   const [editIncome, setEditIncome] = useState<GarageIncomeRow | null>(null);
 
@@ -165,7 +166,8 @@ export function CarCard(props: {
             <div className="text-xl font-semibold tracking-tight text-slate-900">{car.name}</div>
             <div className="mt-1 text-sm text-slate-600">
               Purchase: <span className="font-semibold">{money(car.purchase_price, car.purchase_currency)}</span> ·{" "}
-              {Number(car.purchase_km || 0).toLocaleString()} km{car.purchase_date ? ` · ${car.purchase_date}` : ""}
+              {Number(car.purchase_km || 0).toLocaleString()} km
+              {car.purchase_date ? ` · ${car.purchase_date}` : ""}
             </div>
           </div>
 
@@ -199,9 +201,13 @@ export function CarCard(props: {
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="text-xs text-slate-500">Expenses</div>
-            <div className="mt-1 text-lg font-semibold text-rose-700">{money(expenseTotalWithAdvance, car.purchase_currency)}</div>
+            <div className="mt-1 text-lg font-semibold text-rose-700">
+              {money(expenseTotalWithAdvance, car.purchase_currency)}
+            </div>
             {lease.includeAdvance && advanceNum > 0 ? (
-              <div className="mt-1 text-xs text-slate-500">Includes advance: {money(advanceNum, car.purchase_currency)}</div>
+              <div className="mt-1 text-xs text-slate-500">
+                Includes advance: {money(advanceNum, car.purchase_currency)}
+              </div>
             ) : null}
           </div>
 
@@ -224,6 +230,7 @@ export function CarCard(props: {
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          {/* EXPENSES */}
           <div className="rounded-3xl border border-slate-200 bg-white p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -249,7 +256,10 @@ export function CarCard(props: {
                 <div className="text-sm text-slate-500">No expenses yet.</div>
               ) : (
                 shownExpenses.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                  >
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-slate-900">{r.name}</div>
                       <div className="mt-0.5 text-xs text-slate-500">
@@ -287,6 +297,7 @@ export function CarCard(props: {
             </div>
           </div>
 
+          {/* INCOME */}
           <div className="rounded-3xl border border-slate-200 bg-white p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -312,7 +323,10 @@ export function CarCard(props: {
                 <div className="text-sm text-slate-500">No income yet.</div>
               ) : (
                 shownIncome.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                  >
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-slate-900">{r.source}</div>
                       <div className="mt-0.5 text-xs text-slate-500">{r.date}</div>
@@ -359,6 +373,7 @@ export function CarCard(props: {
         </button>
       </div>
 
+      {/* Expense modal (add / edit) */}
       <CarExpenseModal
         open={openExpense}
         onClose={() => {
@@ -376,6 +391,7 @@ export function CarCard(props: {
         }}
       />
 
+      {/* Income modal (add / edit) */}
       <CarIncomeModal
         open={openIncome}
         onClose={() => {

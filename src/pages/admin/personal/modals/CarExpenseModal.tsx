@@ -17,14 +17,22 @@ function todayISO() {
   return `${y}-${m}-${dd}`;
 }
 
-const KIND_OPTIONS: GarageExpenseKind[] = ["general", "service", "insurance", "tax", "fuel", "repair", "leasing_rate"];
+const KIND_OPTIONS: GarageExpenseKind[] = [
+  "general",
+  "service",
+  "insurance",
+  "tax",
+  "fuel",
+  "repair",
+  "leasing_rate",
+];
 
 export function CarExpenseModal(props: {
   open: boolean;
   onClose: () => void;
   carId: string;
   defaultCurrency: string;
-  initial?: GarageExpenseRow | null; // ✅ edit row
+  initial?: GarageExpenseRow | null; // edit row
   onSaved: () => Promise<void> | void;
 }) {
   const { open, onClose, carId, defaultCurrency, initial = null, onSaved } = props;
@@ -94,7 +102,7 @@ export function CarExpenseModal(props: {
           </button>
         </div>
 
-        <div className="p-5 space-y-3">
+        <div className="space-y-3 p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="text-sm">
               <div className="mb-1 text-slate-600">Date</div>
@@ -117,13 +125,13 @@ export function CarExpenseModal(props: {
             </label>
           </div>
 
-          <label className="text-sm block">
+          <label className="block text-sm">
             <div className="mb-1 text-slate-600">Name</div>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-slate-200"
-              placeholder="ex: Service / Insurance / Tires"
+              placeholder="ex: CASCO / Benzina / Service"
             />
           </label>
 
@@ -134,7 +142,7 @@ export function CarExpenseModal(props: {
                 value={vendor}
                 onChange={(e) => setVendor(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-slate-200"
-                placeholder="ex: Porsche Center"
+                placeholder="ex: OMNIASIG / BCR / OMV"
               />
             </label>
 
@@ -154,17 +162,18 @@ export function CarExpenseModal(props: {
             </label>
           </div>
 
-          <label className="text-sm block">
+          <label className="block text-sm">
             <div className="mb-1 text-slate-600">Amount</div>
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-slate-200"
               placeholder="ex: 500"
+              inputMode="decimal"
             />
           </label>
 
-          <label className="text-sm block">
+          <label className="block text-sm">
             <div className="mb-1 text-slate-600">Note (optional)</div>
             <input
               value={note}
@@ -225,7 +234,7 @@ export function CarExpenseModal(props: {
             }}
             className={clsx(
               "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white",
-              canSave ? "bg-slate-900 hover:bg-slate-800" : "bg-slate-300 cursor-not-allowed"
+              canSave ? "bg-slate-900 hover:bg-slate-800" : "cursor-not-allowed bg-slate-300"
             )}
           >
             <Save className="h-4 w-4" />
