@@ -1,20 +1,13 @@
-import React, { useMemo, useState } from "react";
-import {
-  Plus,
-  PiggyBank,
-  TrendingUp,
-  ArrowDownRight,
-  ArrowUpRight,
-  Pencil,
-  Trash2,
-  X,
-  Save,
-} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Plus, PiggyBank, TrendingUp, ArrowDownRight, ArrowUpRight, Pencil, Trash2, X, Save, RefreshCw } from "lucide-react";
 
 import { StatCards } from "../components/StatCards";
 import { SectionCard } from "../components/SectionCard";
 import { AddIncomeModal, type PersonalTxnDraft } from "../modals/AddIncomeModal";
 import { AddExpenseModal } from "../modals/AddExpenseModal";
+
+// ✅ adjust path if needed
+import { supabase } from "../../../../lib/supabase";
 
 type Txn = {
   id: string;
@@ -32,9 +25,7 @@ export type PeriodState = {
   toISO: string | null;
 };
 
-function uid() {
-  return Math.random().toString(16).slice(2) + Date.now().toString(16);
-}
+type AccountKey = "savings" | "investments";
 
 function formatMoney(n: number) {
   return `${n.toLocaleString(undefined, { maximumFractionDigits: 2 })} €`;
@@ -96,13 +87,18 @@ function inputBase() {
   return "w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-300";
 }
 
+function toNumberSafe(v: string) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
 /** ===== Edit transaction modal ===== */
 function EditTxnModal(props: {
   open: boolean;
   txn: Txn | null;
   onClose: () => void;
-  onSave: (next: Txn) => void;
-  onDelete: (id: string) => void;
+  onSave: (next: Txn) => Promise<void> | void;
+  onDelete: (id: string) => Promise<void> | void;
 }) {
   const t = props.txn;
 
@@ -111,17 +107,15 @@ function EditTxnModal(props: {
   const [name, setName] = useState(t?.name ?? "");
   const [amount, setAmount] = useState<string>(t ? String(t.amount) : "");
   const [note, setNote] = useState(t?.note ?? "");
+  const [busy, setBusy] = useState(false);
 
-  // sync when opening/changing txn
-  useMemo(() => {
-    if (!t) return null;
+  useEffect(() => {
+    if (!t || !props.open) return;
     setDate(t.date);
     setCategory(t.category);
     setName(t.name);
     setAmount(String(t.amount));
     setNote(t.note ?? "");
-    return null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t?.id, props.open]);
 
   const canSave =
@@ -130,22 +124,35 @@ function EditTxnModal(props: {
     !!category.trim() &&
     !!name.trim() &&
     amount.trim() !== "" &&
-    !Number.isNaN(Number(amount)) &&
-    Number(amount) >= 0;
+    !Number.isNaN(toNumberSafe(amount)) &&
+    toNumberSafe(amount) >= 0;
 
   return (
     <ModalShell
       open={props.open}
       title={t ? `Edit ${t.type === "income" ? "Income" : "Expense"}` : "Edit"}
       subtitle={t ? `Transaction • ${t.date}` : undefined}
-      onClose={props.onClose}
+      onClose={() => (busy ? null : props.onClose())}
       footer={
         t ? (
           <>
             <button
               type="button"
-              onClick={() => props.onDelete(t.id)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await props.onDelete(t.id);
+                  props.onClose();
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className={clsx(
+                "inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold",
+                busy ? "cursor-not-allowed opacity-60" : "",
+                "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+              )}
             >
               <Trash2 className="h-4 w-4" />
               Delete
@@ -155,30 +162,39 @@ function EditTxnModal(props: {
 
             <button
               type="button"
+              disabled={busy}
               onClick={props.onClose}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+              className={clsx(
+                "rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                busy ? "cursor-not-allowed opacity-60" : ""
+              )}
             >
               Cancel
             </button>
 
             <button
               type="button"
-              disabled={!canSave}
-              onClick={() => {
+              disabled={!canSave || busy}
+              onClick={async () => {
                 if (!t) return;
-                props.onSave({
-                  ...t,
-                  date,
-                  category: category.trim(),
-                  name: name.trim(),
-                  amount: Number(amount),
-                  note: note.trim() ? note.trim() : undefined,
-                });
-                props.onClose();
+                setBusy(true);
+                try {
+                  await props.onSave({
+                    ...t,
+                    date,
+                    category: category.trim(),
+                    name: name.trim(),
+                    amount: toNumberSafe(amount),
+                    note: note.trim() ? note.trim() : undefined,
+                  });
+                  props.onClose();
+                } finally {
+                  setBusy(false);
+                }
               }}
               className={clsx(
                 "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white",
-                canSave ? "bg-slate-900 hover:bg-slate-800" : "bg-slate-300 cursor-not-allowed"
+                !canSave || busy ? "bg-slate-300 cursor-not-allowed" : "bg-slate-900 hover:bg-slate-800"
               )}
             >
               <Save className="h-4 w-4" />
@@ -197,12 +213,7 @@ function EditTxnModal(props: {
             </label>
             <label className="text-xs text-slate-600">
               Amount (€)
-              <input
-                className={clsx(inputBase(), "mt-1")}
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
+              <input className={clsx(inputBase(), "mt-1")} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </label>
           </div>
 
@@ -226,25 +237,100 @@ function EditTxnModal(props: {
   );
 }
 
+async function requireUserId(): Promise<string> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  const id = data.user?.id;
+  if (!id) throw new Error("Not authenticated (no user).");
+  return id;
+}
+
+function mapRowToTxn(r: any): Txn {
+  return {
+    id: r.id,
+    type: r.type,
+    date: r.date,
+    category: r.category,
+    name: r.name,
+    amount: Number(r.amount),
+    note: r.note ?? undefined,
+  };
+}
+
 export function PersonalFinancials(props: { period: PeriodState }) {
   const { period } = props;
 
-  // ✅ momentan mock local (următorul pas: legăm de DB ca în expenses)
-  const [txns, setTxns] = useState<Txn[]>([
-    { id: uid(), type: "income", date: "2026-02-01", category: "Salary", name: "Salary", amount: 3000 },
-    { id: uid(), type: "expense", date: "2026-02-02", category: "Food", name: "Groceries", amount: 120 },
-    { id: uid(), type: "expense", date: "2026-02-03", category: "Transport", name: "Fuel", amount: 90 },
-  ]);
-
-  const [savings, setSavings] = useState<number>(1500);
-  const [investments, setInvestments] = useState<number>(7200);
+  const [txns, setTxns] = useState<Txn[]>([]);
+  const [savings, setSavings] = useState<number>(0);
+  const [investments, setInvestments] = useState<number>(0);
 
   const [openIncome, setOpenIncome] = useState(false);
   const [openExpense, setOpenExpense] = useState(false);
 
-  // edit
   const [editOpen, setEditOpen] = useState(false);
   const [editTxn, setEditTxn] = useState<Txn | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function loadAll() {
+    setErr(null);
+    setLoading(true);
+    try {
+      const userId = await requireUserId();
+
+      // accounts (ensure they exist)
+      const { data: accRows, error: accErr } = await supabase
+        .from("personal_accounts")
+        .select("key,balance")
+        .eq("user_id", userId);
+
+      if (accErr) throw accErr;
+
+      const byKey = new Map<string, number>();
+      (accRows || []).forEach((r: any) => byKey.set(r.key, Number(r.balance)));
+
+      // ensure savings/investments exist
+      const missing: AccountKey[] = [];
+      if (!byKey.has("savings")) missing.push("savings");
+      if (!byKey.has("investments")) missing.push("investments");
+
+      if (missing.length) {
+        const { error: upErr } = await supabase.from("personal_accounts").upsert(
+          missing.map((k) => ({ user_id: userId, key: k, balance: 0 })),
+          { onConflict: "user_id,key" }
+        );
+        if (upErr) throw upErr;
+        missing.forEach((k) => byKey.set(k, 0));
+      }
+
+      setSavings(byKey.get("savings") ?? 0);
+      setInvestments(byKey.get("investments") ?? 0);
+
+      // txns
+      const { data: rows, error: tErr } = await supabase
+        .from("personal_txns")
+        .select("id,type,date,category,name,amount,note,created_at")
+        .eq("user_id", userId)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(500);
+
+      if (tErr) throw tErr;
+
+      setTxns((rows || []).map(mapRowToTxn));
+    } catch (e: any) {
+      setErr(e?.message || "Failed to load personal financials.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredTxns = useMemo(() => {
     const list = [...txns].sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -255,26 +341,103 @@ export function PersonalFinancials(props: { period: PeriodState }) {
     () => filteredTxns.filter((t) => t.type === "income").reduce((a, b) => a + b.amount, 0),
     [filteredTxns]
   );
-
   const expenseTotal = useMemo(
     () => filteredTxns.filter((t) => t.type === "expense").reduce((a, b) => a + b.amount, 0),
     [filteredTxns]
   );
-
   const net = useMemo(() => incomeTotal - expenseTotal, [incomeTotal, expenseTotal]);
 
-  async function addIncome(d: PersonalTxnDraft) {
-    setTxns((prev) => [
-      { id: uid(), type: "income", date: d.date, category: d.category, name: d.name, amount: d.amount, note: d.note },
-      ...prev,
-    ]);
+  async function addTxn(type: "income" | "expense", d: PersonalTxnDraft) {
+    setErr(null);
+    setBusy(true);
+    try {
+      const userId = await requireUserId();
+      const payload = {
+        user_id: userId,
+        type,
+        date: d.date,
+        category: d.category,
+        name: d.name,
+        amount: d.amount,
+        note: d.note ?? null,
+      };
+
+      const { data, error } = await supabase
+        .from("personal_txns")
+        .insert(payload)
+        .select("id,type,date,category,name,amount,note")
+        .single();
+
+      if (error) throw error;
+
+      setTxns((prev) => [mapRowToTxn(data), ...prev]);
+    } catch (e: any) {
+      setErr(e?.message || "Failed to add transaction.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function addExpense(d: PersonalTxnDraft) {
-    setTxns((prev) => [
-      { id: uid(), type: "expense", date: d.date, category: d.category, name: d.name, amount: d.amount, note: d.note },
-      ...prev,
-    ]);
+  async function updateTxn(next: Txn) {
+    setErr(null);
+    setBusy(true);
+    try {
+      const userId = await requireUserId();
+      const { error } = await supabase
+        .from("personal_txns")
+        .update({
+          date: next.date,
+          category: next.category,
+          name: next.name,
+          amount: next.amount,
+          note: next.note ?? null,
+        })
+        .eq("id", next.id)
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      setTxns((prev) => prev.map((x) => (x.id === next.id ? next : x)));
+    } catch (e: any) {
+      setErr(e?.message || "Failed to update transaction.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeTxn(id: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      const userId = await requireUserId();
+      const { error } = await supabase.from("personal_txns").delete().eq("id", id).eq("user_id", userId);
+      if (error) throw error;
+
+      setTxns((prev) => prev.filter((x) => x.id !== id));
+    } catch (e: any) {
+      setErr(e?.message || "Failed to delete transaction.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setAccount(key: AccountKey, nextBalance: number) {
+    setErr(null);
+    setBusy(true);
+    try {
+      const userId = await requireUserId();
+      const { error } = await supabase
+        .from("personal_accounts")
+        .upsert({ user_id: userId, key, balance: nextBalance }, { onConflict: "user_id,key" });
+      if (error) throw error;
+
+      if (key === "savings") setSavings(nextBalance);
+      if (key === "investments") setInvestments(nextBalance);
+    } catch (e: any) {
+      setErr(e?.message || "Failed to update account.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function openEdit(t: Txn) {
@@ -282,18 +445,28 @@ export function PersonalFinancials(props: { period: PeriodState }) {
     setEditOpen(true);
   }
 
-  function saveEdit(next: Txn) {
-    setTxns((prev) => prev.map((x) => (x.id === next.id ? next : x)));
-  }
-
-  function deleteTxn(id: string) {
-    setTxns((prev) => prev.filter((x) => x.id !== id));
-    setEditOpen(false);
-    setEditTxn(null);
-  }
-
   return (
     <div className="space-y-4">
+      {err ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {err}
+        </div>
+      ) : null}
+
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-500">
+          {loading ? "Loading…" : `Loaded ${txns.length} transactions`}
+        </div>
+        <button
+          type="button"
+          onClick={loadAll}
+          className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </button>
+      </div>
+
       <StatCards
         items={[
           { label: "Income", value: incomeTotal, tone: "good", hint: "Total venituri (în perioada selectată)" },
@@ -311,16 +484,24 @@ export function PersonalFinancials(props: { period: PeriodState }) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                disabled={busy}
                 onClick={() => setOpenIncome(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                className={clsx(
+                  "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white",
+                  busy ? "bg-slate-400 cursor-not-allowed" : "bg-slate-900 hover:bg-slate-800"
+                )}
               >
                 <Plus className="h-4 w-4" />
                 Add Income
               </button>
               <button
                 type="button"
+                disabled={busy}
                 onClick={() => setOpenExpense(true)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                className={clsx(
+                  "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                  busy ? "cursor-not-allowed opacity-60" : ""
+                )}
               >
                 <Plus className="h-4 w-4" />
                 Add Expense
@@ -333,7 +514,7 @@ export function PersonalFinancials(props: { period: PeriodState }) {
               <div className="text-sm text-slate-700">
                 Net: <span className="font-semibold text-slate-900">{formatMoney(net)}</span>
               </div>
-              <div className="text-xs text-slate-500">(mock local) Următorul pas: legăm de DB</div>
+              <div className="text-xs text-slate-500">Supabase: personal_txns</div>
             </div>
 
             <div className="mt-4 divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -351,8 +532,12 @@ export function PersonalFinancials(props: { period: PeriodState }) {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      disabled={busy}
                       onClick={() => openEdit(t)}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50"
+                      className={clsx(
+                        "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50",
+                        busy ? "cursor-not-allowed opacity-60" : ""
+                      )}
                       aria-label="Edit"
                       title="Edit"
                     >
@@ -361,31 +546,23 @@ export function PersonalFinancials(props: { period: PeriodState }) {
                     </button>
 
                     {t.type === "income" ? (
-                      <button
-                        type="button"
-                        onClick={() => openEdit(t)}
-                        className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-                        title="Click to edit"
-                      >
+                      <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
                         <ArrowUpRight className="h-4 w-4" />
                         {formatMoney(t.amount)}
-                      </button>
+                      </span>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => openEdit(t)}
-                        className="inline-flex items-center gap-1 rounded-xl bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
-                        title="Click to edit"
-                      >
+                      <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
                         <ArrowDownRight className="h-4 w-4" />
                         {formatMoney(t.amount)}
-                      </button>
+                      </span>
                     )}
                   </div>
                 </div>
               ))}
 
-              {filteredTxns.length === 0 ? <div className="p-5 text-sm text-slate-600">No transactions in this period.</div> : null}
+              {!loading && filteredTxns.length === 0 ? (
+                <div className="p-5 text-sm text-slate-600">No transactions in this period.</div>
+              ) : null}
             </div>
           </div>
         </SectionCard>
@@ -398,15 +575,23 @@ export function PersonalFinancials(props: { period: PeriodState }) {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setSavings((v) => v - 100)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                  disabled={busy}
+                  onClick={() => setAccount("savings", Math.max(0, savings - 100))}
+                  className={clsx(
+                    "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                    busy ? "cursor-not-allowed opacity-60" : ""
+                  )}
                 >
                   -100 €
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSavings((v) => v + 100)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                  disabled={busy}
+                  onClick={() => setAccount("savings", savings + 100)}
+                  className={clsx(
+                    "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                    busy ? "cursor-not-allowed opacity-60" : ""
+                  )}
                 >
                   <PiggyBank className="h-4 w-4" />
                   +100 €
@@ -417,7 +602,7 @@ export function PersonalFinancials(props: { period: PeriodState }) {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="text-sm text-slate-600">Current savings</div>
               <div className="mt-2 text-2xl font-semibold tracking-tight">{formatMoney(savings)}</div>
-              <div className="mt-2 text-xs text-slate-500">Mock. În DB îl facem ca “accounts / buckets”.</div>
+              <div className="mt-2 text-xs text-slate-500">Supabase: personal_accounts (key=savings)</div>
             </div>
           </SectionCard>
 
@@ -428,15 +613,23 @@ export function PersonalFinancials(props: { period: PeriodState }) {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setInvestments((v) => v - 250)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                  disabled={busy}
+                  onClick={() => setAccount("investments", Math.max(0, investments - 250))}
+                  className={clsx(
+                    "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                    busy ? "cursor-not-allowed opacity-60" : ""
+                  )}
                 >
                   -250 €
                 </button>
                 <button
                   type="button"
-                  onClick={() => setInvestments((v) => v + 250)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                  disabled={busy}
+                  onClick={() => setAccount("investments", investments + 250)}
+                  className={clsx(
+                    "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                    busy ? "cursor-not-allowed opacity-60" : ""
+                  )}
                 >
                   <TrendingUp className="h-4 w-4" />
                   +250 €
@@ -447,16 +640,30 @@ export function PersonalFinancials(props: { period: PeriodState }) {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="text-sm text-slate-600">Current investments</div>
               <div className="mt-2 text-2xl font-semibold tracking-tight">{formatMoney(investments)}</div>
-              <div className="mt-2 text-xs text-slate-500">Mock. În DB: holdings + transactions.</div>
+              <div className="mt-2 text-xs text-slate-500">Supabase: personal_accounts (key=investments)</div>
             </div>
           </SectionCard>
         </div>
       </div>
 
-      <AddIncomeModal open={openIncome} onClose={() => setOpenIncome(false)} onSave={addIncome} />
-      <AddExpenseModal open={openExpense} onClose={() => setOpenExpense(false)} onSave={addExpense} />
+      <AddIncomeModal
+        open={openIncome}
+        onClose={() => setOpenIncome(false)}
+        onSave={(d) => addTxn("income", d)}
+      />
+      <AddExpenseModal
+        open={openExpense}
+        onClose={() => setOpenExpense(false)}
+        onSave={(d) => addTxn("expense", d)}
+      />
 
-      <EditTxnModal open={editOpen} txn={editTxn} onClose={() => setEditOpen(false)} onSave={saveEdit} onDelete={deleteTxn} />
+      <EditTxnModal
+        open={editOpen}
+        txn={editTxn}
+        onClose={() => setEditOpen(false)}
+        onSave={updateTxn}
+        onDelete={removeTxn}
+      />
     </div>
   );
 }
