@@ -1,5 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Plus, PiggyBank, TrendingUp, ArrowDownRight, ArrowUpRight, Pencil, Trash2, X, Save, RefreshCw } from "lucide-react";
+import {
+  Plus,
+  PiggyBank,
+  TrendingUp,
+  ArrowDownRight,
+  ArrowUpRight,
+  Pencil,
+  Trash2,
+  X,
+  Save,
+  RefreshCw,
+} from "lucide-react";
 
 import { StatCards } from "../components/StatCards";
 import { SectionCard } from "../components/SectionCard";
@@ -60,7 +71,9 @@ function ModalShell(props: {
           <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5">
             <div>
               <div className="text-base font-semibold text-slate-900">{props.title}</div>
-              {props.subtitle ? <div className="mt-1 text-sm text-slate-500">{props.subtitle}</div> : null}
+              {props.subtitle ? (
+                <div className="mt-1 text-sm text-slate-500">{props.subtitle}</div>
+              ) : null}
             </div>
             <button
               type="button"
@@ -75,7 +88,9 @@ function ModalShell(props: {
           <div className="p-5">{props.children}</div>
 
           {props.footer ? (
-            <div className="flex items-center justify-end gap-2 border-t border-slate-100 p-5">{props.footer}</div>
+            <div className="flex flex-col-reverse gap-2 border-t border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-end">
+              {props.footer}
+            </div>
           ) : null}
         </div>
       </div>
@@ -136,6 +151,7 @@ function EditTxnModal(props: {
       footer={
         t ? (
           <>
+            {/* On mobile: stack buttons nicely */}
             <button
               type="button"
               disabled={busy}
@@ -149,7 +165,7 @@ function EditTxnModal(props: {
                 }
               }}
               className={clsx(
-                "inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold",
+                "inline-flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold sm:w-auto",
                 busy ? "cursor-not-allowed opacity-60" : "",
                 "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
               )}
@@ -158,14 +174,12 @@ function EditTxnModal(props: {
               Delete
             </button>
 
-            <div className="flex-1" />
-
             <button
               type="button"
               disabled={busy}
               onClick={props.onClose}
               className={clsx(
-                "rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                "w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50 sm:w-auto",
                 busy ? "cursor-not-allowed opacity-60" : ""
               )}
             >
@@ -193,7 +207,7 @@ function EditTxnModal(props: {
                 }
               }}
               className={clsx(
-                "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white",
+                "inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white sm:w-auto",
                 !canSave || busy ? "bg-slate-300 cursor-not-allowed" : "bg-slate-900 hover:bg-slate-800"
               )}
             >
@@ -206,14 +220,24 @@ function EditTxnModal(props: {
     >
       {t ? (
         <div className="grid grid-cols-1 gap-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="text-xs text-slate-600">
               Date
-              <input className={clsx(inputBase(), "mt-1")} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <input
+                className={clsx(inputBase(), "mt-1")}
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
             </label>
             <label className="text-xs text-slate-600">
               Amount (€)
-              <input className={clsx(inputBase(), "mt-1")} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <input
+                className={clsx(inputBase(), "mt-1")}
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
             </label>
           </div>
 
@@ -280,7 +304,6 @@ export function PersonalFinancials(props: { period: PeriodState }) {
     try {
       const userId = await requireUserId();
 
-      // accounts (ensure they exist)
       const { data: accRows, error: accErr } = await supabase
         .from("personal_accounts")
         .select("key,balance")
@@ -291,7 +314,6 @@ export function PersonalFinancials(props: { period: PeriodState }) {
       const byKey = new Map<string, number>();
       (accRows || []).forEach((r: any) => byKey.set(r.key, Number(r.balance)));
 
-      // ensure savings/investments exist
       const missing: AccountKey[] = [];
       if (!byKey.has("savings")) missing.push("savings");
       if (!byKey.has("investments")) missing.push("investments");
@@ -308,7 +330,6 @@ export function PersonalFinancials(props: { period: PeriodState }) {
       setSavings(byKey.get("savings") ?? 0);
       setInvestments(byKey.get("investments") ?? 0);
 
-      // txns
       const { data: rows, error: tErr } = await supabase
         .from("personal_txns")
         .select("id,type,date,category,name,amount,note,created_at")
@@ -410,7 +431,11 @@ export function PersonalFinancials(props: { period: PeriodState }) {
     setBusy(true);
     try {
       const userId = await requireUserId();
-      const { error } = await supabase.from("personal_txns").delete().eq("id", id).eq("user_id", userId);
+      const { error } = await supabase
+        .from("personal_txns")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", userId);
       if (error) throw error;
 
       setTxns((prev) => prev.filter((x) => x.id !== id));
@@ -453,41 +478,45 @@ export function PersonalFinancials(props: { period: PeriodState }) {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between">
+      {/* Top meta row: mobile stack */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-xs text-slate-500">
           {loading ? "Loading…" : `Loaded ${txns.length} transactions`}
         </div>
+
         <button
           type="button"
           onClick={loadAll}
-          className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50 sm:w-auto"
         >
           <RefreshCw className="h-4 w-4" />
           Refresh
         </button>
       </div>
 
-      <StatCards
-        items={[
-          { label: "Income", value: incomeTotal, tone: "good", hint: "Total venituri (în perioada selectată)" },
-          { label: "Expenses", value: expenseTotal, tone: "bad", hint: "Total cheltuieli (în perioada selectată)" },
-          { label: "Savings", value: savings, tone: "info", hint: "Cash / buffer" },
-          { label: "Investments", value: investments, tone: "default", hint: "Portofoliu" },
-        ]}
-      />
+      <div className="w-full">
+        <StatCards
+          items={[
+            { label: "Income", value: incomeTotal, tone: "good", hint: "Total venituri (în perioada selectată)" },
+            { label: "Expenses", value: expenseTotal, tone: "bad", hint: "Total cheltuieli (în perioada selectată)" },
+            { label: "Savings", value: savings, tone: "info", hint: "Cash / buffer" },
+            { label: "Investments", value: investments, tone: "default", hint: "Portofoliu" },
+          ]}
+        />
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SectionCard
           title="Financials"
           subtitle="Income + Expenses, quick add"
           right={
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => setOpenIncome(true)}
                 className={clsx(
-                  "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white",
+                  "inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white sm:w-auto",
                   busy ? "bg-slate-400 cursor-not-allowed" : "bg-slate-900 hover:bg-slate-800"
                 )}
               >
@@ -499,7 +528,7 @@ export function PersonalFinancials(props: { period: PeriodState }) {
                 disabled={busy}
                 onClick={() => setOpenExpense(true)}
                 className={clsx(
-                  "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                  "inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50 sm:w-auto",
                   busy ? "cursor-not-allowed opacity-60" : ""
                 )}
               >
@@ -520,8 +549,8 @@ export function PersonalFinancials(props: { period: PeriodState }) {
             <div className="mt-4 divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white">
               {filteredTxns.slice(0, 10).map((t) => (
                 <div key={t.id} className="flex items-center justify-between gap-3 p-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="text-xs text-slate-500">{t.date}</span>
                       <span className="text-xs font-semibold text-slate-700">{t.category}</span>
                     </div>
@@ -529,20 +558,21 @@ export function PersonalFinancials(props: { period: PeriodState }) {
                     {t.note ? <div className="truncate text-xs text-slate-500">{t.note}</div> : null}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
+                    {/* mobile: icon edit; desktop: text */}
                     <button
                       type="button"
                       disabled={busy}
                       onClick={() => openEdit(t)}
                       className={clsx(
-                        "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50",
+                        "inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50",
                         busy ? "cursor-not-allowed opacity-60" : ""
                       )}
                       aria-label="Edit"
                       title="Edit"
                     >
-                      <Pencil className="h-4 w-4" />
-                      Edit
+                      <Pencil className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Edit</span>
                     </button>
 
                     {t.type === "income" ? (
@@ -572,13 +602,13 @@ export function PersonalFinancials(props: { period: PeriodState }) {
             title="Savings"
             subtitle="Buffer / cash management"
             right={
-              <div className="flex items-center gap-2">
+              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-2">
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => setAccount("savings", Math.max(0, savings - 100))}
                   className={clsx(
-                    "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                    "inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
                     busy ? "cursor-not-allowed opacity-60" : ""
                   )}
                 >
@@ -589,7 +619,7 @@ export function PersonalFinancials(props: { period: PeriodState }) {
                   disabled={busy}
                   onClick={() => setAccount("savings", savings + 100)}
                   className={clsx(
-                    "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                    "inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
                     busy ? "cursor-not-allowed opacity-60" : ""
                   )}
                 >
@@ -610,13 +640,13 @@ export function PersonalFinancials(props: { period: PeriodState }) {
             title="Investments"
             subtitle="Portfolio snapshot"
             right={
-              <div className="flex items-center gap-2">
+              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-2">
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => setAccount("investments", Math.max(0, investments - 250))}
                   className={clsx(
-                    "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                    "inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
                     busy ? "cursor-not-allowed opacity-60" : ""
                   )}
                 >
@@ -627,7 +657,7 @@ export function PersonalFinancials(props: { period: PeriodState }) {
                   disabled={busy}
                   onClick={() => setAccount("investments", investments + 250)}
                   className={clsx(
-                    "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
+                    "inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50",
                     busy ? "cursor-not-allowed opacity-60" : ""
                   )}
                 >
@@ -646,16 +676,8 @@ export function PersonalFinancials(props: { period: PeriodState }) {
         </div>
       </div>
 
-      <AddIncomeModal
-        open={openIncome}
-        onClose={() => setOpenIncome(false)}
-        onSave={(d) => addTxn("income", d)}
-      />
-      <AddExpenseModal
-        open={openExpense}
-        onClose={() => setOpenExpense(false)}
-        onSave={(d) => addTxn("expense", d)}
-      />
+      <AddIncomeModal open={openIncome} onClose={() => setOpenIncome(false)} onSave={(d) => addTxn("income", d)} />
+      <AddExpenseModal open={openExpense} onClose={() => setOpenExpense(false)} onSave={(d) => addTxn("expense", d)} />
 
       <EditTxnModal
         open={editOpen}
