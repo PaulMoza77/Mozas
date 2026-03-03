@@ -9,6 +9,7 @@ import AdminBrands from "./pages/admin/AdminBrands";
 import AdminExpenses from "./pages/admin/AdminExpenses";
 import AdminPersonal from "./pages/admin/AdminPersonal";
 import AdminLogin from "./pages/AdminLogin";
+import Revenues from "./pages/Revenues";
 
 import { AdminTopNav } from "./pages/admin/components/AdminTopNav";
 
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="expenses" element={<AdminExpenses mode="business" />} />
           <Route path="personal" element={<AdminPersonal />} />
           <Route path="brands" element={<AdminBrands />} />
+          <Route path="revenues" element={<Revenues />} />
 
           {/* Unknown admin routes -> /admin */}
           <Route path="*" element={<Navigate to="/admin" replace />} />
