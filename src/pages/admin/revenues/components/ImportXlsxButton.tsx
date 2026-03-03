@@ -5,17 +5,21 @@ interface ImportXlsxButtonProps {
 
 export default function ImportXlsxButton({ onImport }: ImportXlsxButtonProps) {
   return (
-    <input
-      type="file"
-      accept=".xlsx,.xls"
-      onChange={(e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    <label style={{cursor:"pointer",background:"#2563eb",color:"white",padding:"8px 14px",borderRadius:"6px"}}>
+      Import XLSX
+      <input
+        type="file"
+        accept=".xlsx,.xls"
+        style={{display:"none"}}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
 
-        console.log("FILE SELECTED:", file.name);
+          console.log("FILE SELECTED:", file.name);
 
-        onImport(file);
-      }}
-    />
+          onImport(file);
+        }}
+      />
+    </label>
   );
 }
