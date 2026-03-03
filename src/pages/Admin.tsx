@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvided, type DraggableStateSnapshot, type DroppableProvided } from "@hello-pangea/dnd";
 import { fetchExpenses, type DbExpense } from "../lib/expensesApi";
 import { fetchRevenuesAgg } from "../lib/revenuesApi";
 
@@ -222,7 +222,7 @@ export default function MozasOverview() {
               </span>
             </div>
             <DragDropContext
-              onDragEnd={result => {
+              onDragEnd={(result: DropResult) => {
                 if (!result.destination) return;
                 const newOrder = Array.from(brandOrder);
                 const [removed] = newOrder.splice(result.source.index, 1);
@@ -231,7 +231,7 @@ export default function MozasOverview() {
               }}
             >
               <Droppable droppableId="brands-droppable">
-                {(provided: any) => (
+                {(provided: DroppableProvided) => (
                   <div
                     {...provided.droppableProps}
                     ref={provided.innerRef}
@@ -239,7 +239,7 @@ export default function MozasOverview() {
                   >
                     {brandOrder.map((brand, idx) => (
                       <Draggable key={brand} draggableId={brand} index={idx}>
-                        {(prov, snapshot) => (
+                        {(prov: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                           <button
                             ref={prov.innerRef}
                             {...prov.draggableProps}
