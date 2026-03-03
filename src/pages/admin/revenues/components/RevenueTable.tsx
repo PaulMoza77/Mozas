@@ -1,43 +1,70 @@
-import React from "react";
 import type { Revenue } from "../types";
+// import { Button } from "@/components/ui/button";
 
 interface RevenueTableProps {
   revenues: Revenue[];
 }
 
-const RevenueTable: React.FC<RevenueTableProps> = ({ revenues }) => {
+function fmt(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("ro-RO", { style: "currency", currency }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
+}
+
+export default function RevenueTable({ revenues }: RevenueTableProps) {
   return (
-    <div className="overflow-x-auto rounded shadow bg-white">
+    <div className="overflow-x-auto rounded-xl border bg-white">
       <table className="min-w-full text-sm">
-        <thead>
-          <tr className="bg-slate-100">
-            <th className="px-4 py-2 text-left">Data</th>
-            <th className="px-4 py-2 text-left">Sumă</th>
-            <th className="px-4 py-2 text-left">Piață</th>
-            <th className="px-4 py-2 text-left">Descriere</th>
+        <thead className="bg-slate-50">
+          <tr className="text-slate-600">
+            <th className="px-4 py-3 text-left font-semibold">Date</th>
+            <th className="px-4 py-3 text-left font-semibold">Brand</th>
+            <th className="px-4 py-3 text-left font-semibold">Market</th>
+            <th className="px-4 py-3 text-left font-semibold">Description</th>
+            <th className="px-4 py-3 text-right font-semibold">Amount</th>
+            <th className="px-4 py-3 text-right font-semibold">Actions</th>
           </tr>
         </thead>
+
         <tbody>
           {revenues.length === 0 ? (
             <tr>
-              <td colSpan={4} className="px-4 py-4 text-center text-gray-400">
+              <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
                 Nicio încasare găsită.
               </td>
             </tr>
           ) : (
-            revenues.map((r) => (
-              <tr key={r.id} className="border-b last:border-b-0">
-                <td className="px-4 py-2 whitespace-nowrap">{new Date(r.date).toLocaleDateString()}</td>
-                <td className="px-4 py-2 whitespace-nowrap font-semibold">{r.amount.toLocaleString("ro-RO", { style: "currency", currency: "RON" })}</td>
-                <td className="px-4 py-2 whitespace-nowrap">{r.market}</td>
-                <td className="px-4 py-2">{r.description || "-"}</td>
-              </tr>
-            ))
+            revenues.map((r) => {
+              const cur = String(r.market || "RON").toUpperCase(); // la tine market = currency
+              const amt = Number(r.amount) || 0;
+
+              return (
+                <tr key={r.id} className="border-t">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {r.date ? new Date(r.date).toLocaleDateString("ro-RO") : "—"}
+                  </td>
+
+                  <td className="px-4 py-3 whitespace-nowrap">{r.brand || "—"}</td>
+
+                  <td className="px-4 py-3 whitespace-nowrap">{cur}</td>
+
+                  <td className="px-4 py-3 text-slate-600">{r.description || "—"}</td>
+
+                  <td className="px-4 py-3 text-right font-semibold">{fmt(amt, cur)}</td>
+
+                  <td className="px-4 py-3 text-right">
+                      <button className="btn btn-outline btn-sm" disabled>
+                      Edit
+                      </button>
+                  </td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
     </div>
   );
-};
-
-export default RevenueTable;
+}

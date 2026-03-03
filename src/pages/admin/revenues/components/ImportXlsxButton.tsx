@@ -1,28 +1,31 @@
 import React from "react";
+// import { Button } from "@/components/ui/button";
+import { Upload } from "lucide-react";
 
 interface ImportXlsxButtonProps {
   onImport: (file: File) => void;
 }
 
-const ImportXlsxButton: React.FC<ImportXlsxButtonProps> = ({ onImport }) => {
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onImport(file);
-    }
-  };
+export default function ImportXlsxButton({ onImport }: ImportXlsxButtonProps) {
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
 
   return (
-    <label className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700">
-      <span>Import XLSX</span>
+    <>
       <input
+        ref={inputRef}
         type="file"
         accept=".xlsx,.xls"
         className="hidden"
-        onChange={handleFileChange}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onImport(file);
+          e.currentTarget.value = "";
+        }}
       />
-    </label>
+        <button className="btn btn-outline flex items-center" type="button" onClick={() => inputRef.current?.click()}>
+        <Upload className="h-4 w-4 mr-2" />
+        Import XLSX
+        </button>
+    </>
   );
-};
-
-export default ImportXlsxButton;
+}
