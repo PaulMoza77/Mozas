@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+const BRAND_OPTIONS = ["Mozas", "Volocar", "GetSureDrive", "TDG", "Brandly", "Personal"];
 import type { Revenue } from "../types";
 
 interface AddRevenueModalProps {
@@ -12,15 +13,19 @@ const AddRevenueModal: React.FC<AddRevenueModalProps> = ({ open, onClose, onAdd 
   const [date, setDate] = useState("");
   const [market, setMarket] = useState("");
   const [description, setDescription] = useState("");
+  const [brand, setBrand] = useState(BRAND_OPTIONS[0]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !date || !market) return;
-    onAdd({ amount, date, market, description });
+    if (!amount || !date || !market || !brand) return;
+    onAdd({
+      amount, date, market, description, brand
+    });
     setAmount(0);
     setDate("");
     setMarket("");
     setDescription("");
+    setBrand(BRAND_OPTIONS[0]);
     onClose();
   };
 
@@ -45,6 +50,19 @@ const AddRevenueModal: React.FC<AddRevenueModalProps> = ({ open, onClose, onAdd 
         <div className="mb-3">
           <label className="block mb-1">Descriere</label>
           <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full border rounded px-2 py-1" />
+        </div>
+        <div className="mb-3">
+          <label className="block mb-1">Brand</label>
+          <select
+            value={brand}
+            onChange={e => setBrand(e.target.value)}
+            className="w-full border rounded px-2 py-1"
+            required
+          >
+            {BRAND_OPTIONS.map(b => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
         </div>
         <div className="flex justify-end gap-2 mt-4">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded bg-gray-200">Anulează</button>

@@ -1,6 +1,7 @@
 // src/pages/admin/Admin.tsx (sau MozasOverview.tsx – unde e componenta ta)
 import { useEffect, useMemo, useState } from "react";
 import { fetchExpenses, type DbExpense } from "../lib/expensesApi";
+import { fetchRevenuesAgg } from "../lib/revenuesApi";
 
 function money(n: any) {
   const v = Number(n);
@@ -109,17 +110,52 @@ export default function MozasOverview() {
     };
   }, [expenses]);
 
-  // Income încă NU e legat => 0
-  const incomeAggAll = useMemo(() => ({} as Record<string, number>), []);
+  const [incomeAggAll, setIncomeAggAll] = useState<Record<string, number>>({});
+  const [incomeAggByBrand, setIncomeAggByBrand] = useState<Record<string, Record<string, number>>>({});
+  useEffect(() => {
+    fetchRevenuesAgg().then(setIncomeAggAll).catch(() => setIncomeAggAll({}));
+    Promise.all(BRAND_OPTIONS.map(async (brand) => [brand, await fetchRevenuesAgg(brand)]))
+      .then((pairs) => {
+        const obj: Record<string, Record<string, number>> = {};
+        for (const [brand, agg] of pairs) obj[brand as string] = agg as Record<string, number>;
+        setIncomeAggByBrand(obj);
+      });
+  }, []);
   const netProfitAgg = useMemo(() => {
-    // net = income - expenses => momentan = -expenses
+    // net = income - expenses (overall)
     const out: Record<string, number> = {};
-    for (const [cur, exp] of Object.entries(expenseAggAll)) {
+    const allCurrencies = new Set([
+      ...Object.keys(expenseAggAll),
+      ...Object.keys(incomeAggAll),
+    ]);
+    for (const cur of allCurrencies) {
       const inc = incomeAggAll[cur] || 0;
+      const exp = expenseAggAll[cur] || 0;
       out[cur] = inc - exp;
     }
     return out;
   }, [expenseAggAll, incomeAggAll]);
+
+  const netProfitAggByBrand = useMemo(() => {
+    // net = income - expenses (pe brand)
+    const out: Record<string, Record<string, number>> = {};
+    for (const brand of BRAND_OPTIONS) {
+      const incAgg = incomeAggByBrand[brand] || {};
+      const expAgg = expenseAggByBrand[brand] || {};
+      const allCurrencies = new Set([
+        ...Object.keys(incAgg),
+        ...Object.keys(expAgg),
+      ]);
+      const brandOut: Record<string, number> = {};
+      for (const cur of allCurrencies) {
+        const inc = incAgg[cur] || 0;
+        const exp = expAgg[cur] || 0;
+        brandOut[cur] = inc - exp;
+      }
+      out[brand] = brandOut;
+    }
+    return out;
+  }, [incomeAggByBrand, expenseAggByBrand]);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 px-6 py-6">
@@ -290,8 +326,16 @@ export default function MozasOverview() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
                 <p className="text-xs text-slate-500">Total Revenue</p>
-                {/* încă static până legăm income */}
-                <p className="mt-2 text-2xl font-semibold">€55,500</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {Object.keys(incomeAggAll).length === 0 ? "—" : formatAgg(incomeAggAll)}
+                </p>
+                <div className="mt-2 text-xs text-slate-500">
+                  {BRAND_OPTIONS.map(brand => (
+                    <div key={brand}>
+                      <span className="font-semibold">{brand}:</span> {formatAgg(incomeAggByBrand[brand] || {})}
+                    </div>
+                  ))}
+                </div>
                 <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
                   <span>vs last 30 days</span>
                   <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-medium text-[10px]">
@@ -305,6 +349,13 @@ export default function MozasOverview() {
                 <p className="mt-2 text-2xl font-semibold">
                   {loadingExpenses ? "…" : formatAgg(netProfitAgg)}
                 </p>
+                <div className="mt-2 text-xs text-slate-500">
+                  {BRAND_OPTIONS.map(brand => (
+                    <div key={brand}>
+                      <span className="font-semibold">{brand}:</span> {formatAgg(netProfitAggByBrand[brand] || {})}
+                    </div>
+                  ))}
+                </div>
                 <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
                   <span>Income − Expenses</span>
                   <span className="px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-700 font-medium text-[10px]">

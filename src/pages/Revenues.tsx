@@ -4,6 +4,7 @@ import ImportXlsxButton from "./admin/revenues/components/ImportXlsxButton";
 import AddRevenueModal from "./admin/revenues/components/AddRevenueModal";
 import type { Revenue } from "./admin/revenues/types";
 import { fetchRevenues, addRevenue } from "./admin/revenues/api";
+import { parseRevenuesXlsx } from "../lib/parseRevenuesXlsx";
 
 
 // Revenues are loaded from Supabase
@@ -18,9 +19,21 @@ const Revenues: React.FC = () => {
     }, []);
   const [modalOpen, setModalOpen] = React.useState(false);
 
-  const handleImport = (file: File) => {
-    // TODO: Parse XLSX and update revenues
-    alert(`Fișierul selectat: ${file.name}`);
+  const handleImport = async (file: File) => {
+    setLoading(true);
+    try {
+      const parsed = await parseRevenuesXlsx(file, "Mozas");
+      const added: Revenue[] = [];
+      for (const rev of parsed) {
+        const newRev = await addRevenue(rev);
+        if (newRev) added.push(newRev);
+      }
+      if (added.length) setRevenues((prev) => [...added, ...prev]);
+    } catch (err) {
+      alert("Eroare la import: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddRevenue = async (data: Omit<Revenue, "id">) => {

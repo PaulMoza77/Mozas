@@ -40,6 +40,7 @@ export function AdminTopNav() {
           <div className="flex flex-wrap gap-2">
             <Item to="/admin" label="Overview" />
             <Item to="/admin/expenses" label="Expenses" />
+            <Item to="/admin/revenues" label="Revenues" />
             <Item to="/admin/personal" label="Personal" />
             <Item to="/admin/brands" label="Brands" />
           </div>
