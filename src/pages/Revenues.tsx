@@ -2,7 +2,7 @@ import React from "react";
 import RevenueTable from "./admin/revenues/components/RevenueTable";
 import ImportXlsxButton from "./admin/revenues/components/ImportXlsxButton";
 import AddRevenueModal from "./admin/revenues/components/AddRevenueModal";
-import { Revenue } from "./admin/revenues/types";
+import type { Revenue } from "./admin/revenues/types";
 import { fetchRevenues, addRevenue } from "./admin/revenues/api";
 
 

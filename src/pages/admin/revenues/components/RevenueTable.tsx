@@ -1,5 +1,5 @@
 import React from "react";
-import { Revenue } from "../types";
+import type { Revenue } from "../types";
 
 interface RevenueTableProps {
   revenues: Revenue[];

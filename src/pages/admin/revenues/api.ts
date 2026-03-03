@@ -1,5 +1,5 @@
 import { supabase } from "../../../lib/supabase";
-import { Revenue } from "./types";
+import type { Revenue } from "./types";
 
 const TABLE = "revenues";
 
