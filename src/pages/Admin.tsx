@@ -1,5 +1,6 @@
-// src/pages/admin/Admin.tsx (sau MozasOverview.tsx – unde e componenta ta)
+
 import { useEffect, useMemo, useState } from "react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { fetchExpenses, type DbExpense } from "../lib/expensesApi";
 import { fetchRevenuesAgg } from "../lib/revenuesApi";
 
@@ -44,15 +45,22 @@ function daysAgo(n: number) {
   return d;
 }
 
-const BRAND_OPTIONS = ["Mozas", "Volocar", "GetSureDrive", "TDG", "Brandly", "Personal"] as const;
+function getAllBrands(expenses: DbExpense[], incomeAggByBrand: Record<string, any>) {
+  const set = new Set<string>();
+  expenses.forEach(e => e.brand && set.add(e.brand));
+  Object.keys(incomeAggByBrand).forEach(b => set.add(b));
+  return Array.from(set);
+}
 
-const PAID_LIKE = new Set(["Platit", "Preplatit"]); // confirmed cash-out
-const PENDING_LIKE = new Set(["Neplatit", "In Asteptare", "Urgent"]); // pending cash-out
-// Anulat nu-l punem nici la paid, nici la pending (nu afectează cashflow)
+const PAID_LIKE = new Set(["Platit", "Preplatit"]);
+const PENDING_LIKE = new Set(["Neplatit", "In Asteptare", "Urgent"]);
 
 export default function MozasOverview() {
   const [expenses, setExpenses] = useState<DbExpense[]>([]);
   const [loadingExpenses, setLoadingExpenses] = useState(true);
+  const [incomeAggAll, setIncomeAggAll] = useState<Record<string, number>>({});
+  const [incomeAggByBrand, setIncomeAggByBrand] = useState<Record<string, Record<string, number>>>({});
+  const [brandOrder, setBrandOrder] = useState<string[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -75,13 +83,28 @@ export default function MozasOverview() {
     };
   }, []);
 
-  const expenseAggAll = useMemo(() => sumByCurrency(expenses), [expenses]);
+  // Branduri distincte din expenses și revenues
+  const allBrands = useMemo(() => getAllBrands(expenses, incomeAggByBrand), [expenses, incomeAggByBrand]);
+  useEffect(() => {
+    if (allBrands.length && brandOrder.length === 0) setBrandOrder(allBrands);
+  }, [allBrands]);
 
+  useEffect(() => {
+    fetchRevenuesAgg().then(setIncomeAggAll).catch(() => setIncomeAggAll({}));
+    Promise.all(brandOrder.map(async (brand) => [brand, await fetchRevenuesAgg(brand)]))
+      .then((pairs) => {
+        const obj: Record<string, Record<string, number>> = {};
+        for (const [brand, agg] of pairs) obj[brand as string] = agg as Record<string, number>;
+        setIncomeAggByBrand(obj);
+      });
+  }, [brandOrder]);
+
+  const expenseAggAll = useMemo(() => sumByCurrency(expenses), [expenses]);
   const expenseAggByBrand = useMemo(() => {
     const out: Record<string, Record<string, number>> = {};
-    for (const b of BRAND_OPTIONS) out[b] = {};
+    for (const b of brandOrder) out[b] = {};
     for (const r of expenses) {
-      const b = (r.brand || "Mozas") as (typeof BRAND_OPTIONS)[number];
+      const b = r.brand || "Mozas";
       if (!out[b]) out[b] = {};
       const cur = (r.currency || "AED").toUpperCase();
       const amt = Number(r.amount);
@@ -89,20 +112,17 @@ export default function MozasOverview() {
       out[b][cur] = (out[b][cur] || 0) + amt;
     }
     return out;
-  }, [expenses]);
+  }, [expenses, brandOrder]);
 
   const cashflow30d = useMemo(() => {
     const since = daysAgo(29);
-
     const rows30d = expenses.filter((r) => {
       const d = parseISOToDate(r.expense_date);
       if (!d) return false;
       return d >= since;
     });
-
     const paidRows = rows30d.filter((r) => PAID_LIKE.has(String(r.status || "Neplatit")));
     const pendingRows = rows30d.filter((r) => PENDING_LIKE.has(String(r.status || "Neplatit")));
-
     return {
       paidAgg: sumByCurrency(paidRows),
       pendingAgg: sumByCurrency(pendingRows),
@@ -110,19 +130,7 @@ export default function MozasOverview() {
     };
   }, [expenses]);
 
-  const [incomeAggAll, setIncomeAggAll] = useState<Record<string, number>>({});
-  const [incomeAggByBrand, setIncomeAggByBrand] = useState<Record<string, Record<string, number>>>({});
-  useEffect(() => {
-    fetchRevenuesAgg().then(setIncomeAggAll).catch(() => setIncomeAggAll({}));
-    Promise.all(BRAND_OPTIONS.map(async (brand) => [brand, await fetchRevenuesAgg(brand)]))
-      .then((pairs) => {
-        const obj: Record<string, Record<string, number>> = {};
-        for (const [brand, agg] of pairs) obj[brand as string] = agg as Record<string, number>;
-        setIncomeAggByBrand(obj);
-      });
-  }, []);
   const netProfitAgg = useMemo(() => {
-    // net = income - expenses (overall)
     const out: Record<string, number> = {};
     const allCurrencies = new Set([
       ...Object.keys(expenseAggAll),
@@ -137,9 +145,8 @@ export default function MozasOverview() {
   }, [expenseAggAll, incomeAggAll]);
 
   const netProfitAggByBrand = useMemo(() => {
-    // net = income - expenses (pe brand)
     const out: Record<string, Record<string, number>> = {};
-    for (const brand of BRAND_OPTIONS) {
+    for (const brand of brandOrder) {
       const incAgg = incomeAggByBrand[brand] || {};
       const expAgg = expenseAggByBrand[brand] || {};
       const allCurrencies = new Set([
@@ -155,7 +162,7 @@ export default function MozasOverview() {
       out[brand] = brandOut;
     }
     return out;
-  }, [incomeAggByBrand, expenseAggByBrand]);
+  }, [incomeAggByBrand, expenseAggByBrand, brandOrder]);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 px-6 py-6">
@@ -205,90 +212,64 @@ export default function MozasOverview() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px,1fr] gap-6">
-        {/* Left sidebar */}
+        {/* Left sidebar: Carduri branduri drag & drop */}
         <aside className="space-y-4">
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold">Businesses</h2>
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                4 active
+                {allBrands.length} active
               </span>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-              {/* Volocar */}
-              <button className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left hover:bg-slate-100 transition">
-                <div>
-                  <p className="text-xs font-medium">Volocar</p>
-                  <p className="text-[11px] text-slate-500">
-                    Mobility • Rentals & Subscriptions
-                  </p>
-                  <p className="mt-1 text-[10px] text-slate-500">
-                    Expenses:{" "}
-                    <span className="font-semibold">
-                      {loadingExpenses ? "…" : formatAgg(expenseAggByBrand.Volocar)}
-                    </span>
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-semibold text-emerald-600">€42.3k</p>
-                  <p className="text-[10px] text-slate-400">MRR</p>
-                </div>
-              </button>
-
-              {/* TDG */}
-              <button className="w-full flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-left hover:bg-slate-50 transition">
-                <div>
-                  <p className="text-xs font-medium">TheDigitalGifter</p>
-                  <p className="text-[11px] text-slate-500">AI Gifts • Global</p>
-                  <p className="mt-1 text-[10px] text-slate-500">
-                    Expenses:{" "}
-                    <span className="font-semibold">
-                      {loadingExpenses ? "…" : formatAgg(expenseAggByBrand.TDG)}
-                    </span>
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-semibold text-emerald-600">€8.7k</p>
-                  <p className="text-[10px] text-slate-400">MRR</p>
-                </div>
-              </button>
-
-              {/* Starscale (încă static în UI-ul tău) */}
-              <button className="w-full flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-left hover:bg-slate-50 transition">
-                <div>
-                  <p className="text-xs font-medium">Starscale</p>
-                  <p className="text-[11px] text-slate-500">
-                    Growth • Funnels & Ads
-                  </p>
-                  <p className="mt-1 text-[10px] text-slate-500">
-                    Expenses: <span className="font-semibold">—</span>
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-semibold text-emerald-600">€3.1k</p>
-                  <p className="text-[10px] text-slate-400">MRR</p>
-                </div>
-              </button>
-
-              {/* BRNDLY */}
-              <button className="w-full flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-left hover:bg-slate-50 transition">
-                <div>
-                  <p className="text-xs font-medium">BRNDLY</p>
-                  <p className="text-[11px] text-slate-500">Branding • Assets</p>
-                  <p className="mt-1 text-[10px] text-slate-500">
-                    Expenses:{" "}
-                    <span className="font-semibold">
-                      {loadingExpenses ? "…" : formatAgg(expenseAggByBrand.Brandly)}
-                    </span>
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-semibold text-emerald-600">€1.4k</p>
-                  <p className="text-[10px] text-slate-400">MRR</p>
-                </div>
-              </button>
-            </div>
+            <DragDropContext
+              onDragEnd={result => {
+                if (!result.destination) return;
+                const newOrder = Array.from(brandOrder);
+                const [removed] = newOrder.splice(result.source.index, 1);
+                newOrder.splice(result.destination.index, 0, removed);
+                setBrandOrder(newOrder);
+              }}
+            >
+              <Droppable droppableId="brands-droppable">
+                {(provided: any) => (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm"
+                  >
+                    {brandOrder.map((brand, idx) => (
+                      <Draggable key={brand} draggableId={brand} index={idx}>
+                        {(prov, snapshot) => (
+                          <button
+                            ref={prov.innerRef}
+                            {...prov.draggableProps}
+                            {...prov.dragHandleProps}
+                            className={
+                              "w-full flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left hover:bg-slate-100 transition " +
+                              (snapshot.isDragging ? "ring-2 ring-emerald-400" : "")
+                            }
+                          >
+                            <div>
+                              <p className="text-xs font-medium">{brand}</p>
+                              <p className="mt-1 text-[10px] text-slate-500">
+                                Revenues: <span className="font-semibold">{formatAgg(incomeAggByBrand[brand] || {})}</span>
+                              </p>
+                              <p className="mt-1 text-[10px] text-slate-500">
+                                Expenses: <span className="font-semibold">{formatAgg(expenseAggByBrand[brand] || {})}</span>
+                              </p>
+                              <p className="mt-1 text-[10px] text-slate-500">
+                                Net profit: <span className="font-semibold">{formatAgg(netProfitAggByBrand[brand] || {})}</span>
+                              </p>
+                            </div>
+                          </button>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           </div>
 
           {/* Quick actions */}
@@ -330,7 +311,7 @@ export default function MozasOverview() {
                   {Object.keys(incomeAggAll).length === 0 ? "—" : formatAgg(incomeAggAll)}
                 </p>
                 <div className="mt-2 text-xs text-slate-500">
-                  {BRAND_OPTIONS.map(brand => (
+                  {brandOrder.map((brand: string) => (
                     <div key={brand}>
                       <span className="font-semibold">{brand}:</span> {formatAgg(incomeAggByBrand[brand] || {})}
                     </div>
@@ -350,7 +331,7 @@ export default function MozasOverview() {
                   {loadingExpenses ? "…" : formatAgg(netProfitAgg)}
                 </p>
                 <div className="mt-2 text-xs text-slate-500">
-                  {BRAND_OPTIONS.map(brand => (
+                  {brandOrder.map((brand: string) => (
                     <div key={brand}>
                       <span className="font-semibold">{brand}:</span> {formatAgg(netProfitAggByBrand[brand] || {})}
                     </div>
