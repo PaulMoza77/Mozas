@@ -1,5 +1,5 @@
-import { supabase } from "../../lib/supabase";
-import type { Revenue } from "../admin/revenues/types";
+import { supabase } from "./supabase";
+import type { Revenue } from "../pages/admin/revenues/types";
 
 export async function fetchRevenuesAgg(brand?: string): Promise<Record<string, number>> {
   let query = supabase
