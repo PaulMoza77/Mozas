@@ -6,7 +6,7 @@ const TABLE = "revenues";
 export async function fetchRevenues(): Promise<Revenue[]> {
   const { data, error } = await supabase
     .from(TABLE)
-    .select("id, amount, date, market, description, created_at")
+    .select("id, amount, date, market, brand, description, created_at")
     .order("date", { ascending: false });
   if (error) throw error;
   return data || [];
