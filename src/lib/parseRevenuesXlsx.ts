@@ -7,14 +7,19 @@ function norm(s: unknown) {
   return String(s ?? "")
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/\u00a0/g, " "); // nbsp
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function normalizeKeys(row: Record<string, any>) {
+  const out: Record<string, any> = {};
+  for (const k of Object.keys(row)) out[norm(k)] = row[k];
+  return out;
 }
 
 function toISODate(v: any): string | null {
   if (v === null || v === undefined || v === "") return null;
 
-  // Date object
   if (v instanceof Date && !isNaN(v.getTime())) {
     const y = v.getFullYear();
     const m = String(v.getMonth() + 1).padStart(2, "0");
@@ -22,7 +27,6 @@ function toISODate(v: any): string | null {
     return `${y}-${m}-${d}`;
   }
 
-  // Excel serial date
   if (typeof v === "number" && isFinite(v)) {
     const dt = XLSX.SSF.parse_date_code(v);
     if (dt?.y && dt?.m && dt?.d) {
@@ -34,11 +38,8 @@ function toISODate(v: any): string | null {
   }
 
   const s = String(v).trim();
-
-  // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
-  // DD.MM.YYYY or DD/MM/YYYY
   const m1 = s.match(/^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{4})$/);
   if (m1) {
     const dd = String(Number(m1[1])).padStart(2, "0");
@@ -54,7 +55,6 @@ function toAmount(v: any): number | null {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v === "number" && isFinite(v)) return Math.round(v * 100) / 100;
 
-  // allow "1.234,56" and "1234,56"
   const s = String(v)
     .trim()
     .replace(/\s/g, "")
@@ -65,19 +65,12 @@ function toAmount(v: any): number | null {
   return Math.round(n * 100) / 100;
 }
 
-function sheetToRows(wb: XLSX.WorkBook, headerRowIndex: number) {
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<Record<string, any>>(ws, {
-    defval: "",
-    raw: true,
-    range: headerRowIndex, // 0 = first row, 1 = second row etc
-  });
-}
-
-function normalizeKeys(row: Record<string, any>) {
-  const out: Record<string, any> = {};
-  for (const k of Object.keys(row)) out[norm(k)] = row[k];
-  return out;
+function getCell(r: Record<string, any>, keys: string[]) {
+  for (const k of keys) {
+    const kk = norm(k);
+    if (r[kk] !== undefined && r[kk] !== null && String(r[kk]).trim() !== "") return r[kk];
+  }
+  return null;
 }
 
 function hasAnyKey(rows: Record<string, any>[], keys: string[]) {
@@ -86,93 +79,138 @@ function hasAnyKey(rows: Record<string, any>[], keys: string[]) {
   return keys.some((k) => set.has(norm(k)));
 }
 
+function sheetToRows(wb: XLSX.WorkBook, headerRowIndex: number) {
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json<Record<string, any>>(ws, {
+    defval: "",
+    raw: true,
+    range: headerRowIndex,
+  });
+}
+
 /**
  * Acceptă:
- * 1) Template: amount,date,market,brand,description
- * 2) REZERVARI: DAT (date) + Tot. Incasat (amount) (+ optional: Provenienta/Oras/etc)
+ * A) Template: amount | date | market | brand | description
+ * B) REZERVARI: date (DAT/Data/Start) + amount (Tot. Incasat / Incasat / Total / Suma)
  */
 export async function parseRevenuesXlsx(file: File): Promise<ParsedRevenue[]> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array" });
 
-  // încercăm 2 variante: header pe primul rând, sau header pe al doilea rând (cum e des la REZERVARI)
-  const raw0 = sheetToRows(wb, 0);
-  const raw1 = sheetToRows(wb, 1);
+  // try header row at 0 and 1 (REZERVARI uneori are titlu sus)
+  const raw0 = sheetToRows(wb, 0).map(normalizeKeys);
+  const raw1 = sheetToRows(wb, 1).map(normalizeKeys);
 
-  const rows0 = raw0.map(normalizeKeys);
-  const rows1 = raw1.map(normalizeKeys);
+  const isTemplate = (rows: Record<string, any>[]) =>
+    hasAnyKey(rows, ["amount"]) &&
+    hasAnyKey(rows, ["date"]) &&
+    hasAnyKey(rows, ["market"]) &&
+    hasAnyKey(rows, ["brand"]);
 
-  // Detect template vs rezervari
-  const isTemplate0 =
-    hasAnyKey(rows0, ["amount"]) && hasAnyKey(rows0, ["date"]) && hasAnyKey(rows0, ["market"]) && hasAnyKey(rows0, ["brand"]);
-  const isTemplate1 =
-    hasAnyKey(rows1, ["amount"]) && hasAnyKey(rows1, ["date"]) && hasAnyKey(rows1, ["market"]) && hasAnyKey(rows1, ["brand"]);
+  const isRezervari = (rows: Record<string, any>[]) =>
+    hasAnyKey(rows, ["dat", "data", "start"]) &&
+    hasAnyKey(rows, [
+      "tot. incasat",
+      "tot incasat",
+      "incasat",
+      "total incasat",
+      "total",
+      "suma",
+      "sumă",
+      "valoare",
+      "value",
+    ]);
 
-  const isRez0 =
-    hasAnyKey(rows0, ["dat", "data"]) && hasAnyKey(rows0, ["tot. incasat", "tot incasat", "incasat", "total incasat"]);
-  const isRez1 =
-    hasAnyKey(rows1, ["dat", "data"]) && hasAnyKey(rows1, ["tot. incasat", "tot incasat", "incasat", "total incasat"]);
-
-  let rows: Record<string, any>[] = rows0;
+  let rows = raw0;
   let mode: "template" | "rezervari" | "unknown" = "unknown";
 
-  if (isTemplate0) {
-    rows = rows0;
+  if (isTemplate(raw0)) {
+    rows = raw0;
     mode = "template";
-  } else if (isTemplate1) {
-    rows = rows1;
+  } else if (isTemplate(raw1)) {
+    rows = raw1;
     mode = "template";
-  } else if (isRez0) {
-    rows = rows0;
+  } else if (isRezervari(raw0)) {
+    rows = raw0;
     mode = "rezervari";
-  } else if (isRez1) {
-    rows = rows1;
+  } else if (isRezervari(raw1)) {
+    rows = raw1;
     mode = "rezervari";
   }
 
-  // DEBUG: vezi în console ce a detectat
   console.log("[parseRevenuesXlsx] mode =", mode, "rows =", rows.length);
 
   const out: ParsedRevenue[] = [];
 
-  for (const r of rows) {
+  for (const r0 of rows) {
+    const r = r0; // already normalized keys
+
     if (mode === "template") {
-      const amount = toAmount(r["amount"]);
-      const date = toISODate(r["date"]);
-      const market = String(r["market"] ?? "").trim();
-      const brand = String(r["brand"] ?? "").trim();
-      const description = String(r["description"] ?? "").trim();
+      const amount = toAmount(getCell(r, ["amount", "suma", "sumă", "total", "value"]));
+      const date = toISODate(getCell(r, ["date", "data"]));
+      const market = String(getCell(r, ["market", "piata", "piață", "currency"]) ?? "").trim();
+      const brand = String(getCell(r, ["brand"]) ?? "").trim();
+      const description = String(getCell(r, ["description", "descriere", "note"]) ?? "").trim();
 
       if (!date || amount === null || !market || !brand) continue;
 
-      out.push({ amount, date, market, brand, description: description || "" });
+      out.push({
+        amount,
+        date,
+        market,
+        brand,
+        description: description || "",
+      });
       continue;
     }
 
     if (mode === "rezervari") {
-      const amount =
-        toAmount(r["tot. incasat"]) ??
-        toAmount(r["tot incasat"]) ??
-        toAmount(r["incasat"]) ??
-        toAmount(r["total incasat"]);
-
-      const date = toISODate(r["dat"] ?? r["data"]);
-
-      // la REZERVARI nu ai market/currency => punem default RON (schimbi dacă vrei)
-      const market = "RON";
-      const brand = "Volocar";
-
-      // descriere: încearcă să ia ceva identificator, altfel fallback
-      const desc =
-        String(r["id rezervare"] ?? r["id"] ?? r["id client"] ?? r["client"] ?? "").trim() || "Rezervare import";
+      const date = toISODate(getCell(r, ["dat", "data", "start", "data rezervare", "data rezervării"]));
+      const amount = toAmount(
+        getCell(r, [
+          "tot. incasat",
+          "tot incasat",
+          "total incasat",
+          "incasat",
+          "total",
+          "suma",
+          "sumă",
+          "valoare",
+          "value",
+          "pret",
+          "preț",
+        ])
+      );
 
       if (!date || amount === null) continue;
 
-      out.push({ amount, date, market, brand, description: desc });
+      // daca ai moneda in rezervari, o luam; altfel RON
+      const market = String(getCell(r, ["currency", "moneda", "valoare moneda"]) ?? "RON").trim() || "RON";
+      const brand = "Volocar";
+
+      const description =
+        String(
+          getCell(r, [
+            "id rezervare",
+            "rezervare",
+            "id",
+            "client",
+            "nume",
+            "masina",
+            "mașina",
+            "car",
+          ]) ?? "Rezervare import"
+        ).trim() || "Rezervare import";
+
+      out.push({
+        amount,
+        date,
+        market,
+        brand,
+        description,
+      });
       continue;
     }
-
-    // unknown => nu importăm nimic
   }
 
   console.log("[parseRevenuesXlsx] parsed =", out.length);
